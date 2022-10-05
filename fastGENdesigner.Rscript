@@ -1,6 +1,6 @@
 
 BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
-
+setwd("~/primer3/src") # set Working DIRECTORY where u have input.txt!)
 #####################################################333
 library(EnsDb.Hsapiens.v86)
 library(ensembldb)

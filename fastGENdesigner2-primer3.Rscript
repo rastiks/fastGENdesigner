@@ -173,8 +173,11 @@ primers2ranges<-function(primers,as.data.frame=FALSE){
 
 
 ############################## primer_design - using external program PRIMER3    ###############
- 
+ library(seqinr)
+ file.remove('primers.fasta')
  list_of_df = list()
+ list_of_primer_seq <- list()
+
  df_primers_complete <-data.frame()
  for(i in 1:length(gr_total)) 
      {
@@ -188,12 +191,22 @@ primers2ranges<-function(primers,as.data.frame=FALSE){
       scores=c(rep(".", reps))      # pozor nefunguje ked nenavrhne ziadny primer
       strands_left=c(rep("+", reps))
       strands_right=c(rep("-", reps))
-      
+     
+     #obsahuje vzdy jeden ciel a par riadok bedu
      df_primer_LEFT <- data.frame(seqnames=gr_total[i]@seqnames@values,  start=primers$PRIMER_LEFT_pos+gr_total[i]@ranges@start-200, end=primers$PRIMER_LEFT_pos-200+gr_total[i]@ranges@start+primers$PRIMER_LEFT_len, names = paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,sep='_'),scores=scores,strand=strands_left)
      df_primer_RIGHT <- data.frame(seqnames=gr_total[i]@seqnames@values,  start=primers$PRIMER_RIGHT_pos+gr_total[i]@ranges@start-200-primers$PRIMER_RIGHT_len,end=primers$PRIMER_RIGHT_pos+gr_total[i]@ranges@start-200, names = paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,sep='_'),scores=scores,strand=strands_right)
      df_primer <- rbind(df_primer_LEFT,df_primer_RIGHT)
      df_primers_complete <- rbind(df_primers_complete,df_primer)     
-      }
+      
+     #export sekvencii do primerpoolera
+     seq_name <- paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,"L", sep='_')
+     seq_name <- c(seq_name, paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,"R", sep='_'))
+     
+     list_of_primer_seq <- primers$PRIMER_LEFT_SEQUENCE
+     list_of_primer_seq <- c(list_of_primer_seq, primers$PRIMER_RIGHT_SEQUENCE)
+
+     write.fasta(sequences = as.list(list_of_primer_seq), names = seq_name,file.out = 'primers.fasta',open = "a")
+     }
    }
 
 write.table(df_primers_complete, file="primers.bed", quote=F, sep="\t", row.names=F, col.names=F)

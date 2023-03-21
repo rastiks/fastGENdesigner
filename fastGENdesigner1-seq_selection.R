@@ -31,7 +31,7 @@ middle = gr_total@ranges@start
 width<-gr_total@ranges@width
 stop = gr_total@ranges@start+width+200
 
-#ziskavanie sekvencii
+#ziskavanie sekvencii - seq_complete
 seqA<-getSeq(Hsapiens,chrom,start = start, end = middle-1)
 seqA_ch<-getSeq(Hsapiens,chrom,start = start, end = middle-1, as.character = TRUE)
 seqB<-getSeq(Hsapiens,chrom,start = middle, end = middle+width-1)
@@ -58,5 +58,9 @@ df_seq <- data.frame(seqnames=seqnames(gr_total),
  
 write.table(df_seq, file="full_seq_ROI.bed", quote=F, sep="\t", row.names=F, col.names=F)
 
+# ulozenie seq_Complete
+library(seqinr)
+file.remove('sequences.fasta')
+write.fasta(sequences = as.list(seq_complete), names = seq(1, 12, 1),file.out = 'sequences.fasta',open = "a")
 
 gr_total

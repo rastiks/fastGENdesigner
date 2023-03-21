@@ -5,6 +5,7 @@ setwd("~/primer3/src") # set Working DIRECTORY where u have input.txt!)
 library(EnsDb.Hsapiens.v86)
 library(ensembldb)
 library("BSgenome.Hsapiens.UCSC.hg38")
+protein@listData[["tx_id"]]
 
 edb <- EnsDb.Hsapiens.v86
 

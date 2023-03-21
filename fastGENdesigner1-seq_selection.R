@@ -5,12 +5,12 @@ setwd("~/primer3/src") # set Working DIRECTORY where u have input.txt!)
 library(EnsDb.Hsapiens.v86)
 library(ensembldb)
 library("BSgenome.Hsapiens.UCSC.hg38")
-protein@listData[["tx_id"]]
 
 edb <- EnsDb.Hsapiens.v86
 
 protein <- proteins(edb, filter = ~ genename == "PIK3CA")
 protein #hladanie spravneho transkriptu / produktu transkriptu
+protein@listData[["tx_id"]]
 
 #nacitanie ROI
 d <- read.delim("input.txt", header=T)

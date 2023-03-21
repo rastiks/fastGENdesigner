@@ -183,7 +183,7 @@ primers2ranges<-function(primers,as.data.frame=FALSE){
      {
      primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_width=width[i],size_range = '51-170',Tm=c(52,59,65)) 
      new_member_of_list = list(primers)
-     list_of_primers_df = c(list_of_df,new_member_of_list)
+     list_of_primers_df = c(list_of_primers_df,new_member_of_list)
      
       if (is.integer(nrow(primers))) { 
       reps <- nrow(primers) 

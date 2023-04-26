@@ -1,66 +1,127 @@
+#BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
+#BiocManager::install("EnsDb.Hsapiens.v86") 
 
-BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
-setwd("~/primer3/src") # set Working DIRECTORY where u have input.txt!)
-#####################################################333
+setwd("~/bva/fastgen/fastGENdesigner") 
+
 library(EnsDb.Hsapiens.v86)
 library(ensembldb)
+library(seqinr)
 library("BSgenome.Hsapiens.UCSC.hg38")
 
+# ENSEMBL DATABASE
 edb <- EnsDb.Hsapiens.v86
 
-protein <- proteins(edb, filter = ~ genename == "PIK3CA")
-protein #hladanie spravneho transkriptu / produktu transkriptu
-protein@listData[["tx_id"]]
+# INPUTS
+d <- read.delim("input.txt", header=T) 
+prt <- IRanges(start=d$start, end=d$stop, names=d$gene)
 
-#nacitanie ROI
-d <- read.delim("input.txt", header=T)
-prt <- IRanges(start=d$start, end=d$stop, names=d$gene) 
+# map proteins to genome
 gnm <- proteinToGenome(prt, edb)
-gr_total = NULL
+gr_total = NULL 
 gr_total = gnm[[1]]
 for(i in 2:length(gnm)) {
   gr_total<-c(gr_total,gnm[[i]]) 
 } 
-gr_total
-   
 
-#hladanie region ROI +-200bp
-chrom = paste("chr", gr_total@seqnames,sep="")
-start=gr_total@ranges@start-200
-middle = gr_total@ranges@start
-width<-gr_total@ranges@width
-stop = gr_total@ranges@start+width+200
+# <------------------- my_code
+if (length(unique(d$gene))  == 1) {
+  # get exons id
+  exon_id_roi <- gr_total$exon_id
+  # get all exons of our target gene
+  my_exons <- exons(edb, filter= ~ protein_id == d$gene[1])
+  # keep only exons with our ROIs
+  my_exons <- my_exons[my_exons$exon_id %in% exon_id_roi]
+  
+  # length of exons
+  my_width <- my_exons@ranges@width
+  # separate the problematic exons - longer than 150bp
+  longer_than_150 <- which(my_width>150)
+  problems <- my_exons[longer_than_150]
+  my_exons <- my_exons[-longer_than_150]
+}
 
-#ziskavanie sekvencii - seq_complete
-seqA<-getSeq(Hsapiens,chrom,start = start, end = middle-1)
-seqA_ch<-getSeq(Hsapiens,chrom,start = start, end = middle-1, as.character = TRUE)
-seqB<-getSeq(Hsapiens,chrom,start = middle, end = middle+width-1)
-seqC<-getSeq(Hsapiens,chrom,start = stop-200, end = stop)
-seqC_ch<-getSeq(Hsapiens,chrom,start = stop-200, end = stop, as.character = TRUE)
-seq_complete<-seqA<-getSeq(Hsapiens,chrom,start = start, end = stop)
+# initialization
+my_starts <- c()
+my_names <- c()
+my_seqnames <- c()
+my_exons_id <- c()
+my_proteins_id <- c()
+my_strands <- c()
+my_starts <- c()
+my_widths <- c()
 
-# ulozenie bedu ROI 
-df <- data.frame(seqnames=seqnames(gr_total),
-  starts=start(gr_total)-1,
-  ends=end(gr_total),
-  names=paste(gr_total$exon_id,gr_total$protein_start,gr_total$protein_end,sep='_'),
-  scores=c(rep(".", length(gr_total))),
-  strands=strand(gr_total))
+# deal with longer exons - split them so they are < 150bp
+for (i in 1:length(problems)){
+  split_number <- ceiling(problems@ranges@width[i]/150)
+  
+  # exon names
+  my_names <- c(my_names,paste(rep(names(problems[i]), split_number),as.character(seq(1,split_number)),sep="_"))
+  # chromosome
+  my_seqnames <- c(my_seqnames,rep(levels(seqnames(problems[i])),split_number))
+  # exon id
+  my_exons_id <- c(my_exons_id,rep(problems$exon_id[i], split_number))
+  # protein id
+  my_proteins_id <- c(my_proteins_id,rep(problems$protein_id[i], split_number))
+  # strand
+  my_strands <- c(my_strands,rep(as.character(problems[i]@strand@values),split_number))
+  
+  # initial coordinates
+  start <- problems@ranges@start[i]
+  width <- problems@ranges@width[i]
+  end <- start + width
+  # spliting by width/split_number
+  split_intervals <- round(seq(start,end,by=round(width/split_number)))
+  
+  # sometimes the last bp can be saved as new start - dont know why - can be deleted
+  if (length(split_intervals) > split_number) split_intervals <- split_intervals[-length(split_intervals)]
+  
+  # new starts
+  my_starts <- c(my_starts,split_intervals)
+  
+  # new widths - diff 
+  split_intervals <- c(split_intervals,end)
+  my_widths <- c(my_widths, diff(split_intervals))
+}
 
-write.table(df, file="ROI.bed", quote=F, sep="\t", row.names=F, col.names=F)
+# save all the data into Granges class
+gr <- GRanges(seqnames = my_seqnames, strand = my_strands,
+              ranges = IRanges(start = my_starts, width = my_widths),
+              protein_id = my_proteins_id, exon_id = my_exons_id)
+names(gr) <- my_names
 
-df_seq <- data.frame(seqnames=seqnames(gr_total),
-  starts=start,
-  ends=stop,
-  names=paste(gr_total$exon_id,gr_total$protein_start,gr_total$protein_end,sep='_'),
-  scores=c(rep(".", length(gr_total))),
-  strands=strand(gr_total))
- 
-write.table(df_seq, file="full_seq_ROI.bed", quote=F, sep="\t", row.names=F, col.names=F)
+# merge the split problematic exons and nonproblematic ones
+my_exons_final <- c(gr, my_exons)
 
-# ulozenie seq_Complete
-library(seqinr)
-file.remove('sequences.fasta')
-write.fasta(sequences = as.list(seq_complete), names = seq(1, 12, 1),file.out = 'sequences.fasta',open = "a")
+# get sequences for primer design -50...exon....+50
+my_chrom <- rep(levels(my_exons_final@seqnames@values),length(my_exons_final))
+my_chrom <- paste("chr",my_chrom,sep="")
+my_start <- my_exons_final@ranges@start -50
+my_end <- my_start + my_exons_final@ranges@width + 50 
+my_exons_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
 
-gr_total
+# BED file - only exons
+df <- data.frame(seqnames=seqnames(my_exons_final),
+                 starts=start(my_exons_final)-1,
+                 ends=end(my_exons_final),
+                 names=names(my_exons_final),
+                 scores=c(rep(".", length(my_exons_final))),
+                 strands=strand(my_exons_final))
+
+write.table(df, file="ROI_exons.bed", quote=F, sep="\t", row.names=F, col.names=F)
+
+# BED file - -50 exons +50
+df_complete_seq <- data.frame(seqnames=seqnames(my_exons_final),
+                              starts=my_start, # ma tu byt -1 alebo nie??
+                              ends=my_end,
+                              names=names(my_exons_final),
+                              scores=c(rep(".", length(my_exons_final))),
+                              strands=strand(my_exons_final))
+
+write.table(df_complete_seq, file="ROI_exons_full_seqs.bed", quote=F, sep="\t", row.names=F, col.names=F)
+
+# FASTA
+names(my_exons_seq) <- names(my_exons_final)
+writeXStringSet(my_exons_seq,file = "exons_full_sequences.fasta",format="fasta")
+# <------------------------
+
+

@@ -1,11 +1,6 @@
 #BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
 #BiocManager::install("EnsDb.Hsapiens.v86") 
 
-suppressMessages(library(EnsDb.Hsapiens.v86))
-suppressMessages(library(ensembldb))
-suppressMessages(library(seqinr))
-suppressMessages(library("BSgenome.Hsapiens.UCSC.hg38"))
-
 seq_selection <- function(input_file,output_folder) {
   
   # ENSEMBL DATABASE
@@ -17,26 +12,35 @@ seq_selection <- function(input_file,output_folder) {
   # <------------------- my_code
   if (length(d)  == 1) {
     # get all exons of our target gene
-    my_exons <- exons(edb, filter= ~ protein_id == d$gene[1])
-    # length of exons
-    my_width <- my_exons@ranges@width
-    # separate the problematic exons - longer than 150bp
-    longer_than_150 <- which(my_width>150)
-    problems <- my_exons[longer_than_150]
-    my_exons <- my_exons[-longer_than_150]
+    my_rois <- exons(edb, filter= ~ protein_id == d$gene[1])
   }
+  else{
+    prt <- IRanges(start=d$start, end=d$stop, names=d$gene)
+    gnm <- proteinToGenome(prt, edb)
+    my_rois = NULL 
+    my_rois = gnm[[1]]
+    for(i in 2:length(gnm)) {
+     my_rois<-c(my_rois,gnm[[i]]) 
+    }
+    names(my_rois) <- seq(1, length(my_rois))
+  }
+  my_width <-my_rois@ranges@width
+  longer_than_150 <- which(my_width>150)
+  problems <- my_rois[longer_than_150]
+  if (length(problems)>0) my_rois <- my_rois[-longer_than_150]
   
+  if (length(problems) >0){
   # initialization
   my_starts <- c()
   my_names <- c()
   my_seqnames <- c()
-  my_exons_id <- c()
+  my_rois_id <- c()
   my_proteins_id <- c()
   my_strands <- c()
   my_starts <- c()
   my_widths <- c()
   
-  # deal with longer exons - split them so they are < 150bp
+  # deal with longer exons/ROIs - split them so they are < 150bp
   for (i in 1:length(problems)){
     split_number <- ceiling(problems@ranges@width[i]/150)
     
@@ -45,7 +49,7 @@ seq_selection <- function(input_file,output_folder) {
     # chromosome
     my_seqnames <- c(my_seqnames,rep(levels(seqnames(problems[i])),split_number))
     # exon id
-    my_exons_id <- c(my_exons_id,rep(problems$exon_id[i], split_number))
+    my_rois_id <- c(my_rois_id,rep(problems$exon_id[i], split_number))
     # protein id
     my_proteins_id <- c(my_proteins_id,rep(problems$protein_id[i], split_number))
     # strand
@@ -72,46 +76,56 @@ seq_selection <- function(input_file,output_folder) {
   # save all the data into Granges class
   gr <- GRanges(seqnames = my_seqnames, strand = my_strands,
                 ranges = IRanges(start = my_starts, width = my_widths),
-                protein_id = my_proteins_id, exon_id = my_exons_id)
+                protein_id = my_proteins_id, exon_id = my_rois_id)
   names(gr) <- my_names
   
   # merge the split problematic exons and nonproblematic ones
-  my_exons_final <- c(gr, my_exons)
+  my_rois_final <- c(gr, my_rois)
+  }
   
-  # get sequences for primer design -50...exon....+50
-  my_chrom <- rep(levels(my_exons_final@seqnames@values),length(my_exons_final))
+  # get sequences for primer design -50...exon....+50 or -200...roi....+200
+  if (length(d)  == 1) prolong <- 50
+  else prolong <- 200
+  
+  my_chrom <- rep(levels(my_rois_final@seqnames@values),length(my_rois_final))
   my_chrom <- paste("chr",my_chrom,sep="")
-  my_start <- my_exons_final@ranges@start -50
-  my_end <- my_start + my_exons_final@ranges@width + 50 
-  my_exons_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
+  my_start <- my_rois_final@ranges@start - prolong
+  my_end <- my_start + my_rois_final@ranges@width + prolong
+  my_rois_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
   
   # BED file - only exons
-  df <- data.frame(seqnames=seqnames(my_exons_final),
-                   starts=start(my_exons_final)-1,
-                   ends=end(my_exons_final),
-                   names=names(my_exons_final),
-                   scores=c(rep(".", length(my_exons_final))),
-                   strands=strand(my_exons_final))
+  df <- data.frame(seqnames=seqnames(my_rois_final),
+                   starts=start(my_rois_final)-1,
+                   ends=end(my_rois_final),
+                   names=names(my_rois_final),
+                   scores=c(rep(".", length(my_rois_final))),
+                   strands=strand(my_rois_final))
   
   write.table(df, file=paste(output_folder,"ROI_exons.bed",sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
   
   # BED file - -50 exons +50
-  df_complete_seq <- data.frame(seqnames=seqnames(my_exons_final),
+  df_complete_seq <- data.frame(seqnames=seqnames(my_rois_final),
                                 starts=my_start, 
                                 ends=my_end,
-                                names=names(my_exons_final),
-                                scores=c(rep(".", length(my_exons_final))),
-                                strands=strand(my_exons_final))
+                                names=names(my_rois_final),
+                                scores=c(rep(".", length(my_rois_final))),
+                                strands=strand(my_rois_final))
   
   write.table(df_complete_seq, file=paste(output_folder,"ROI_exons_full_seqs.bed",sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
   
   # FASTA
-  names(my_exons_seq) <- names(my_exons_final)
-  writeXStringSet(my_exons_seq,file = paste(output_folder,"exons_full_sequences.fasta",sep="/"),format="fasta")
+  names(my_rois_seq) <- names(my_rois_final)
+  writeXStringSet(my_rois_seq,file = paste(output_folder,"exons_full_sequences.fasta",sep="/"),format="fasta")
   # <------------------------
 }
 
 main <- function(input_file, output_folder){
+  message("Loading packages")
+  suppressMessages(library(EnsDb.Hsapiens.v86))
+  suppressMessages(library(ensembldb))
+  suppressMessages(library(seqinr))
+  suppressMessages(library("BSgenome.Hsapiens.UCSC.hg38"))
+  
   message("Starting step1 with args")
   message(paste0("input_file:", input_file))
   message(paste0("output_folder:", output_folder))

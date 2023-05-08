@@ -25,10 +25,10 @@ bash fastGENdesigner.sh
 ```
 
 ### Possible inputs:  
-1. GENE name - see example <em>input.txt</em> 
+1. GENE name - see example <em>input.txt</em>  
 fastGENdesigner will design primers for **all exons** of the given gene.  
 
-2. ROIs coordinates and gene name - see example <em>input_all.txt</em> 
+2. ROIs coordinates and gene name - see example <em>input_all.txt</em>  
 fastGENdesigner will design primers for **ROIs**. 
 
 ### Possible outputs:
@@ -39,9 +39,9 @@ exons_full_seqs.bed: bed file for prolonged exons
 exons_full_sequences.fasta: prolonged exons sequences  
 
 2. **ROIs**  
-ROIs.bed: bed file for ROIs
-ROIs_full_seqs.bed: bed file for prolonged ROIs
-ROIs_full_sequences.fasta: prolonged ROIs sequences
+ROIs.bed: bed file for ROIs  
+ROIs_full_seqs.bed: bed file for prolonged ROIs  
+ROIs_full_sequences.fasta: prolonged ROIs sequences  
 
 - Modul2:  
 primers.bed: bed file for designed primers  

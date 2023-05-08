@@ -84,14 +84,19 @@ seq_selection <- function(input_file,output_folder) {
   }
   
   # get sequences for primer design -50...exon....+50 or -200...roi....+200
-  if (length(d)  == 1) prolong <- 50
+  if (length(d)  == 1) prolong <- 100
   else prolong <- 200
   
   my_chrom <- rep(levels(my_rois_final@seqnames@values),length(my_rois_final))
   my_chrom <- paste("chr",my_chrom,sep="")
-  my_start <- my_rois_final@ranges@start - prolong
-  my_end <- my_start + my_rois_final@ranges@width + prolong
+  my_start <- my_rois_final@ranges@start - prolong # problem
+  my_end <- my_rois_final@ranges@start + my_rois_final@ranges@width + prolong 
   my_rois_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
+  
+  
+  if (length(d)  == 1) name_file <- "exons"
+  else name_file <- "ROIs"
+  
   
   # BED file - only exons
   df <- data.frame(seqnames=seqnames(my_rois_final),
@@ -101,7 +106,7 @@ seq_selection <- function(input_file,output_folder) {
                    scores=c(rep(".", length(my_rois_final))),
                    strands=strand(my_rois_final))
   
-  write.table(df, file=paste(output_folder,"ROI_exons.bed",sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
+  write.table(df, file=paste(output_folder,paste(name_file,".bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
   
   # BED file - -50 exons +50
   df_complete_seq <- data.frame(seqnames=seqnames(my_rois_final),
@@ -111,24 +116,27 @@ seq_selection <- function(input_file,output_folder) {
                                 scores=c(rep(".", length(my_rois_final))),
                                 strands=strand(my_rois_final))
   
-  write.table(df_complete_seq, file=paste(output_folder,"ROI_exons_full_seqs.bed",sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
+  
+  write.table(df_complete_seq, file=paste(output_folder,paste(name_file,"_full_seqs.bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
   
   # FASTA
   names(my_rois_seq) <- names(my_rois_final)
-  writeXStringSet(my_rois_seq,file = paste(output_folder,"exons_full_sequences.fasta",sep="/"),format="fasta")
+  writeXStringSet(my_rois_seq,file = paste(output_folder,paste(name_file,"_full_sequences.fasta",sep=""),sep="/"),format="fasta")
   # <------------------------
 }
 
 main <- function(input_file, output_folder){
+  
+  
+  message("Starting step1 with args")
+  message(paste0("input_file:", input_file))
+  message(paste0("output_folder:", output_folder))
+  
   message("Loading packages")
   suppressMessages(library(EnsDb.Hsapiens.v86))
   suppressMessages(library(ensembldb))
   suppressMessages(library(seqinr))
   suppressMessages(library("BSgenome.Hsapiens.UCSC.hg38"))
-  
-  message("Starting step1 with args")
-  message(paste0("input_file:", input_file))
-  message(paste0("output_folder:", output_folder))
   seq_selection(input_file, output_folder)
   message("Done")
 }
@@ -139,6 +147,9 @@ args = commandArgs(trailingOnly=TRUE)
 for(i in 1:length(args)){
   eval(parse(text=args[[i]]))
 }
+
+#input_file="/home/ppola/bva/fastgen/fastGENdesigner/input.txt"
+#output_folder="/home/ppola/bva/fastgen/fastGENdesigner"
 
 main(input_file, output_folder)
 

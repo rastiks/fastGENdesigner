@@ -24,24 +24,26 @@ Rscript fastGENdesigner2-primer3.R "input_file='$input_file'" "output_folder='$o
 bash fastGENdesigner.sh
 ```
 
-- Possible inputs:  
-1. GENE name - see example input.txt  
-fastGENdesigner will design primers for all exons of the given gene.
-2. ROIs coordinates and gene name - see example input_all.txt  
-fastGENdesigner will design primers for ROIs. 
+### Possible inputs:  
+1. GENE name - see example <em>input.txt</em> 
+fastGENdesigner will design primers for **all exons** of the given gene.  
 
-- Possible outputs:
-Modul1:  
-1.  
+2. ROIs coordinates and gene name - see example <em>input_all.txt</em> 
+fastGENdesigner will design primers for **ROIs**. 
+
+### Possible outputs:
+- Modul1:  
+1. **EXONS**  
 exons.bed: bed file for all exons  
 exons_full_seqs.bed: bed file for prolonged exons  
-exons_full_sequences.fasta: prolonged exons sequences 
-2.  
+exons_full_sequences.fasta: prolonged exons sequences  
+
+2. **ROIs**  
 ROIs.bed: bed file for ROIs
 ROIs_full_seqs.bed: bed file for prolonged ROIs
 ROIs_full_sequences.fasta: prolonged ROIs sequences
 
-Modul2:  
+- Modul2:  
 primers.bed: bed file for designed primers  
 primers.fasta: primers sequences
 

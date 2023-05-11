@@ -11,28 +11,18 @@
 #' @author Altuna Akalin modified Arnaud Krebs' original function
 #' @example
 #' 
-#' primers=mapply(.callP3NreadOrg,seq=sample.seq,
-#'                                   name=names(sample.seq),
-#'                      MoreArgs=list(primer3=primer3,size_range=size_range,Tm=Tm,
-#'                                    thermo.param=thermoParam,settings=settings)
-#'                      ,SIMPLIFY = FALSE)
-#' 
-#' 
 
-# pozor nutna konfiguracia dle cesty k primer3   !!!!!!!!!!!!!!!!!!!! 
-.callP3NreadOrg<-function(seq,ROI_width=3,size_range='51-170',Tm=c(54,59,63),name,
-                       primer3="/home/rastik/primer3/src/primer3_core",
-                       thermo.param="/home/rastik/primer3/src/primer3_config/",
-                       settings="/home/rastik/primer3/settings_files/default_settings.txt"){
+
+# primer 3 configuration!!!
+.callP3NreadOrg<-function(seq,ROI_start = 100, ROI_width=3,size_range='30-500',Tm=c(54,59,63),name, # <-----------------------------------roi_width
+                          primer3="/home/ppola/primer3/primer3-2.6.1/src/primer3_core",
+                          thermo.param="/home/ppola/primer3/primer3-2.6.1/src/primer3_config/",
+                          settings="/home/ppola/primer3/primer3-2.6.1/settings_files/primer3_v1_1_4_default_settings.txt"){
   
-
-
-
-  #print(excluded.regions)
   # make primer 3 input file
   p3.input=tempfile()
   p3.output=tempfile()
-  ROI_target=paste("200,",ROI_width)
+  ROI_target=paste(ROI_start,",",ROI_width)
   write(
     paste( sprintf("SEQUENCE_ID=%s\n",name  ),
            sprintf("SEQUENCE_TEMPLATE=%s\n",as.character(seq)),
@@ -57,7 +47,7 @@
   #call primer 3 and store the output in a temporary file
   try(system(
     paste(primer3 ,p3.input, "-p3_settings_file",settings, 
-                ">", p3.output)
+          ">", p3.output)
   ))
   
   #import and parse the output into a dataframe named designed.primers
@@ -106,109 +96,100 @@
       )
       rownames(primer.info)=NULL
       designed.primers=rbind(designed.primers, primer.info)
-      #print(primer.info)
+      
     }
     
-    
-    
-    #colnames(designed.primers)=c('PrimerID',
-    #                             'Fwseq','Rvseq',
-    #                             'FwTm','RvTm',
-    #                             'FwPos','Fwlen',
-    #                             'RvPos','Rvlen',
-    #                             'fragLen' )
     
   }
   return(designed.primers)
 }
 
 
-#' convert primer list to genomic intervals
-#' 
-#' function returns a GRanges or data frame object from a list of primers designed
-#' by \code{designPrimers} function after calculating genomic location of the amplicon
-#' targeted by the primers.
-#' 
-#' @param primers a list of primers returned by \code{designPrimers} function
-#' @param as.data.frame logical indicating if a data frame should be returned
-#'        instead of \code{GRanges} object.
-#'        
-#' @examples
-#'  data(bisPrimers)
-#'  # remove data with no primers found
-#'  bisPrimers=bisPrimers[!is.na(bisPrimers)]
-#'  gr.pr=primers2ranges(bisPrimers) # convert primers to GRanges
-#'          
-#' @seealso \code{\link{filterPrimers}}, \code{\link{designPrimers}}
-#'        
-#' @export
-#' @docType methods
-primers2ranges<-function(primers,as.data.frame=FALSE){
-  
-  if(any(is.na(primers))){
-    warning( "There are targets without primers\nfiltering those before conversion")
-    primers=primers[ !is.na(primers) ]
-  }
-  df=do.call("rbind",primers) # get primers to a df
-  locs=gsub("\\|\\.+","",rownames(df)) # get the coordinates from list ids
-  temp=do.call("rbind",strsplit(locs,"_")) #
-  
-  start=as.numeric(temp[,2])
-  chr=as.character(temp[,1])
-  
-  
-  
-  amp.start= start + as.numeric(df$PRIMER_LEFT_pos)  
-  amp.end  = start + as.numeric(df$PRIMER_RIGHT_pos)
-  res=data.frame(chr=chr,start=amp.start,end=amp.end,df)
-  #saveRDS(res,file="/work2/gschub/altuna/projects/DMR_alignments/all.designed.primers.to.amps.rds")
-  if(as.data.frame)
-  {
-    return(res)
-  }
-  gr=GRanges(seqnames=res[,1],ranges=IRanges(res[,2],res[,3]) )
-  values(gr)=res[,-c(1,2,3)]
-  gr
-}
-
-
 ############################## primer_design - using external program PRIMER3    ###############
- library(seqinr)
- file.remove('primers.fasta')
- list_of_primers_df = list()
- list_of_primer_seq <- list()
 
- df_primers_complete <-data.frame()
- for(i in 1:length(gr_total)) 
-     {
-     primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_width=width[i],size_range = '51-170',Tm=c(52,59,65)) 
-     new_member_of_list = list(primers)
-     list_of_primers_df = c(list_of_primers_df,new_member_of_list)
-     
-      if (is.integer(nrow(primers))) { 
+primer3caller <- function(input_file, path_to_files){
+  d <- read.delim(input_file, header=T) 
+  
+  # if only gene in input -> exons wanted, else ROIs wanted
+  if (length(d)  == 1) {
+    padding_number <- 100
+    name_file <- "exons"} else {
+      padding_number <- 200
+      name_file <- "ROIs"
+    }
+  
+  # full padded sequences
+  seq_complete <- readDNAStringSet(paste(path_to_files,"/",name_file,"_full_sequences.fasta", sep=""))
+  
+  # bed file - without padding
+  bed_file <- read.table(paste(path_to_files,"/",name_file,".bed", sep = ""))
+  res <- GRanges(seqnames = bed_file$V1,ranges = IRanges(start = bed_file$V2,
+                                                         end = bed_file$V3,
+                                                         names = bed_file$V4))
+  
+  # width of ROIs/Exons
+  width <- res@ranges@width
+  
+  # variables initialization
+  list_of_primer_seq <- list()
+  df_primers_complete <-data.frame()
+  primers = NULL
+  
+  
+  # for loop through bed file
+  for(i in 1:length(res)) 
+  {
+    # calling PRIMER3 for padded sequence with parameters: ROI start (padding_number), ROI width, size range of wanted region, melting temperatures
+    primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_start = padding_number, ROI_width=width[i],size_range = '150-250',Tm=c(52,59,65))  
+    
+    # check if primers were found
+    if (is.integer(nrow(primers))) {
       reps <- nrow(primers) 
-     
-      scores=c(rep(".", reps))      # pozor nefunguje ked nenavrhne ziadny primer
+      scores=c(rep(".", reps))     
       strands_left=c(rep("+", reps))
       strands_right=c(rep("-", reps))
-     
-     #obsahuje vzdy jeden ciel a par riadok bedu
-     df_primer_LEFT <- data.frame(seqnames=gr_total[i]@seqnames@values,  start=primers$PRIMER_LEFT_pos+gr_total[i]@ranges@start-200, end=primers$PRIMER_LEFT_pos-200+gr_total[i]@ranges@start+primers$PRIMER_LEFT_len, names = paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,sep='_'),scores=scores,strand=strands_left)
-     df_primer_RIGHT <- data.frame(seqnames=gr_total[i]@seqnames@values,  start=primers$PRIMER_RIGHT_pos+gr_total[i]@ranges@start-200-primers$PRIMER_RIGHT_len,end=primers$PRIMER_RIGHT_pos+gr_total[i]@ranges@start-200, names = paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,sep='_'),scores=scores,strand=strands_right)
-     df_primer <- rbind(df_primer_LEFT,df_primer_RIGHT)
-     df_primers_complete <- rbind(df_primers_complete,df_primer)     
       
-     #export sekvencii do primerpoolera
-     seq_name <- paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,"L", sep='_')
-     seq_name <- c(seq_name, paste(gr_total[i]$exon_id,gr_total[i]$protein_start,gr_total[i]$protein_end,primers$i,"R", sep='_'))
-     
-     list_of_primer_seq <- primers$PRIMER_LEFT_SEQUENCE
-     list_of_primer_seq <- c(list_of_primer_seq, primers$PRIMER_RIGHT_SEQUENCE)
+      # add left and right primers to df_primers_complete dataframe
+      # why - padding_number??
+      df_primer_LEFT <- data.frame(seqnames=res[i]@seqnames@values,  start=primers$PRIMER_LEFT_pos+res[i]@ranges@start-padding_number, end=primers$PRIMER_LEFT_pos-padding_number+res[i]@ranges@start+primers$PRIMER_LEFT_len, names = paste(names(res)[i], primers$i, sep="_"),scores=scores,strand=strands_left)
+      df_primer_RIGHT <- data.frame(seqnames=res[i]@seqnames@values,  start=primers$PRIMER_RIGHT_pos+res[i]@ranges@start-padding_number-primers$PRIMER_RIGHT_len+1,end=primers$PRIMER_RIGHT_pos+res[i]@ranges@start-padding_number-1, names = paste(names(res)[i], primers$i, sep="_"),scores=scores,strand=strands_right)
+      df_primer <- rbind(df_primer_LEFT,df_primer_RIGHT)
+      df_primers_complete <- rbind(df_primers_complete,df_primer)     
+      
+      # sequences for primerpooler
+      seq_name <- paste(names = names(res)[i],primers$i,"L", sep='_')
+      seq_name <- c(seq_name, paste(names = names(res)[i],primers$i,"R", sep='_'))
+      
+      list_of_primer_seq <- primers$PRIMER_LEFT_SEQUENCE
+      list_of_primer_seq <- c(list_of_primer_seq, primers$PRIMER_RIGHT_SEQUENCE)
+      
+      write.fasta(sequences = as.list(list_of_primer_seq), names = seq_name,file.out = paste(path_to_files,'primers.fasta', sep="/"),open = "a")
+    }
+    else
+    {message(paste("For sequence number ",i, names(res[i]), "no primer was found"))}
+  }
+  
+  write.table(df_primers_complete, file=paste(path_to_files,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
+}
 
-     write.fasta(sequences = as.list(list_of_primer_seq), names = seq_name,file.out = 'primers.fasta',open = "a")
-     }
-   }
+main <- function(input_file, output_folder){
+  message("Starting step2 - primer3")
+  message("Loading packages")
+  suppressMessages(library(seqinr))
+  suppressMessages(library(GenomicRanges))
+  suppressMessages(library(Biostrings))
+  suppressWarnings(primer3caller(input_file, output_folder))
+  message("Done")
+}
 
-write.table(df_primers_complete, file="primers.bed", quote=F, sep="\t", row.names=F, col.names=F)
- 
-#####################################################################################################
+# ARGS
+args = commandArgs(trailingOnly=TRUE)
+
+for(i in 1:length(args)){
+  eval(parse(text=args[[i]]))
+}
+
+#input_file="/home/ppola/bva/fastgen/fastGENdesigner/input.txt"
+#output_folder="/home/ppola/bva/fastgen/fastGENdesigner"
+
+main(input_file, output_folder)

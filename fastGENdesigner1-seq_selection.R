@@ -13,14 +13,17 @@ seq_selection <- function(input_file,output_folder) {
   if (length(d)  == 1) {
     # get all exons of our target gene
     my_rois <- exons(edb, filter= ~ protein_id == d$gene[1])
+    message(paste("Checking exons for", d$gene[1],sep = " "))
   }
   else{
     prt <- IRanges(start=d$start, end=d$stop, names=d$gene)
     gnm <- proteinToGenome(prt, edb)
     my_rois = NULL 
     my_rois = gnm[[1]]
-    for(i in 2:length(gnm)) {
-     my_rois<-c(my_rois,gnm[[i]]) 
+    if (length(gnm)>1) {
+      for(i in 2:length(gnm)) {
+        my_rois<-c(my_rois,gnm[[i]]) 
+      }
     }
     names(my_rois) <- seq(1, length(my_rois))
   }
@@ -82,7 +85,9 @@ seq_selection <- function(input_file,output_folder) {
   # merge the split problematic exons and nonproblematic ones
   my_rois_final <- c(gr, my_rois)
   }
-  
+  else {
+    my_rois_final <- my_rois
+  }
   # get sequences for primer design -50...exon....+50 or -200...roi....+200
   if (length(d)  == 1) prolong <- 100
   else prolong <- 200
@@ -92,7 +97,7 @@ seq_selection <- function(input_file,output_folder) {
   my_start <- my_rois_final@ranges@start - prolong # problem
   my_end <- my_rois_final@ranges@start + my_rois_final@ranges@width + prolong 
   my_rois_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
-  
+  my_rois_seq <- DNAStringSet(my_rois_seq)
   
   if (length(d)  == 1) name_file <- "exons"
   else name_file <- "ROIs"
@@ -148,8 +153,8 @@ for(i in 1:length(args)){
   eval(parse(text=args[[i]]))
 }
 
-#input_file="/home/ppola/bva/fastgen/fastGENdesigner/input.txt"
-#output_folder="/home/ppola/bva/fastgen/fastGENdesigner"
+#input_file="/home/ppola/bva/fastgen/fastGENdesigner/inputs_outputs/input_all.txt"
+#output_folder="/home/ppola/bva/fastgen/fastGENdesigner/inputs_outputs"
 
 main(input_file, output_folder)
 

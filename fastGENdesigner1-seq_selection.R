@@ -25,7 +25,8 @@ seq_selection <- function(input_file,output_folder) {
         my_rois<-c(my_rois,gnm[[i]]) 
       }
     }
-    names(my_rois) <- seq(1, length(my_rois))
+    
+    names(my_rois) <- paste(my_rois$exon_id,my_rois$protein_start,my_rois$protein_end,sep='_')
   }
   my_width <-my_rois@ranges@width
   longer_than_150 <- which(my_width>150)
@@ -103,6 +104,8 @@ seq_selection <- function(input_file,output_folder) {
   else name_file <- "ROIs"
   
   
+  # names=paste(gr_total$exon_id,gr_total$protein_start,gr_total$protein_end,sep='_')
+  
   # BED file - only exons
   df <- data.frame(seqnames=seqnames(my_rois_final),
                    starts=start(my_rois_final)-1,
@@ -153,7 +156,7 @@ for(i in 1:length(args)){
   eval(parse(text=args[[i]]))
 }
 
-#input_file="/home/ppola/bva/fastgen/fastGENdesigner/inputs_outputs/input_all.txt"
+#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_all.txt"
 #output_folder="/home/ppola/bva/fastgen/fastGENdesigner/inputs_outputs"
 
 main(input_file, output_folder)

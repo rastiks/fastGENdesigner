@@ -10,15 +10,49 @@ seq_selection <- function(input_file,output_folder) {
   d <- read.delim(input_file, header=T) 
 
   # <------------------- my_code
+  # MANE select
+  message("Searching for MANE SELECT")
+  message("-------------------------------------------------------")
+  mane_gff <- readGFF("MANE.GRCh38.v1.0.ensembl_genomic.gff.gz")
+  # check if gene name is correct
+  if (d$gene[1] %in% mane_gff$gene_name) message("MANE SELECT found")
+  else {
+    #message("Cannot find MANE SELECT, please try different gene name.")
+    stop("Cannot find MANE SELECT, please try different gene name")
+  }
+  
+  prot_id <- unique(mane_gff[mane_gff$gene_name == d$gene[1],"protein_id"])
+  prot_id <- prot_id[!is.na(prot_id)]
+  
+  trans_id <- unique(mane_gff[mane_gff$gene_name == d$gene[1],"transcript_id"])
+  trans_id <- trans_id[!is.na(trans_id)]
+  
+  if (length(prot_id) == 1) {
+    prot_id <- unlist(strsplit(prot_id, split="[.]"))[1]
+    trans_id <- unlist(strsplit(trans_id, split="[.]"))[1]
+    message(paste("Trancript ID:",trans_id, sep=" "))
+    message(paste("Protein ID:",prot_id, sep=" "))
+    message("Please check the MANE SELECT here:")
+    message(paste("https://www.ensembl.org/Homo_sapiens/Location/View?db=core;g=ENSG00000163041;r=1:226062716-226072019;t=",trans_id,sep=""))
+    message(paste("https://www.lrg-sequence.org/search/?query=",d$gene[1],sep=""))
+    message(paste("https://www.genenames.org/data/gene-symbol-report/#!/symbol/",d$gene[1],sep=""))
+    message(paste("https://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=",d$gene[1],sep=""))
+    message("-------------------------------------------------------")
+    }
+  else{
+    stop("Found multiple MANE SELECT??, please choose the right one manually from:")
+  }
+  
+  
   if (length(d)  == 1) {
     # get all exons of our target gene
     message(paste("Checking exons for", d$gene[1],sep = " "))
-    my_rois <- exons(edb, filter= ~ protein_id == d$gene[1])
+    my_rois <- exons(edb, filter= ~ protein_id == prot_id)
     
     # delete UTR
     message("Removing UTRs")
-    five_utr <- (fiveUTRsByTranscript(edb, filter= ~ protein_id == d$gene[1]))@unlistData
-    three_utr <- (threeUTRsByTranscript(edb, filter= ~ protein_id == d$gene[1]))@unlistData
+    five_utr <- (fiveUTRsByTranscript(edb, filter= ~ protein_id == prot_id))@unlistData
+    three_utr <- (threeUTRsByTranscript(edb, filter= ~ protein_id == prot_id))@unlistData
     
     # check if some exon is all UTR - necessary because exon cannot by of length 0 - we have to delete whole exon
     # 5' UTR
@@ -42,12 +76,10 @@ seq_selection <- function(input_file,output_folder) {
     new_ranges_three <- IRanges(start = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@start) , width = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@width) - three_utr@ranges@width)
     my_rois[names((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges)]@ranges <- new_ranges_three
     
-    
-    
-    # find
   }
+  
   else{
-    prt <- IRanges(start=d$start, end=d$stop, names=d$gene)
+    prt <- IRanges(start=d$start, end=d$stop, names=prot_id)
     gnm <- proteinToGenome(prt, edb)
     my_rois = NULL 
     my_rois = gnm[[1]]
@@ -187,8 +219,8 @@ for(i in 1:length(args)){
   eval(parse(text=args[[i]]))
 }
 
-#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input.txt"
-#output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_all.txt"
+output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
 
 main(input_file, output_folder)
 

@@ -24,6 +24,10 @@ Rscript fastGENdesigner2-primer3.R "input_file='$input_file'" "output_folder='$o
 bash fastGENdesigner.sh
 ```
 
+- UTRs removed
+- automatic selection of MANE SELECT
+- URL generator
+
 ### Possible inputs:  
 1. GENE name - see example <em>input.txt</em>  
 fastGENdesigner will design primers for **all exons** of the given gene.  

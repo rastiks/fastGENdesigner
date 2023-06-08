@@ -12,8 +12,39 @@ seq_selection <- function(input_file,output_folder) {
   # <------------------- my_code
   if (length(d)  == 1) {
     # get all exons of our target gene
-    my_rois <- exons(edb, filter= ~ protein_id == d$gene[1])
     message(paste("Checking exons for", d$gene[1],sep = " "))
+    my_rois <- exons(edb, filter= ~ protein_id == d$gene[1])
+    
+    # delete UTR
+    message("Removing UTRs")
+    five_utr <- (fiveUTRsByTranscript(edb, filter= ~ protein_id == d$gene[1]))@unlistData
+    three_utr <- (threeUTRsByTranscript(edb, filter= ~ protein_id == d$gene[1]))@unlistData
+    
+    # check if some exon is all UTR - necessary because exon cannot by of length 0 - we have to delete whole exon
+    # 5' UTR
+    if (TRUE %in% ((my_rois[my_rois$exon_id == five_utr$exon_id])@ranges@width == five_utr@ranges@width)) {
+      where_five <- which(((my_rois[my_rois$exon_id == five_utr$exon_id])@ranges@width == five_utr@ranges@width) == TRUE)
+      where_roi <- which(my_rois$exon_id == five_utr[where_five]$exon_id)
+      my_rois <- my_rois[-where_roi]
+      five_utr <- five_utr[-where_five]
+    }
+    # 3' UTR
+    if (TRUE %in% ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@width == three_utr@ranges@width)) {
+      where_three <- which(((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@width == three_utr@ranges@width) == TRUE)
+      where_roi <- which(my_rois$exon_id == three_utr[where_three]$exon_id)
+      my_rois <- my_rois[-where_roi]
+      three_utr <- three_utr[-where_three]
+    }
+    
+    new_ranges_five <- IRanges(start = five_utr@ranges@start + five_utr@ranges@width, width = ((my_rois[my_rois$exon_id == five_utr$exon_id])@ranges@width) - five_utr@ranges@width)
+    my_rois[names((my_rois[my_rois$exon_id == five_utr$exon_id])@ranges)]@ranges <- new_ranges_five
+    
+    new_ranges_three <- IRanges(start = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@start) , width = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@width) - three_utr@ranges@width)
+    my_rois[names((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges)]@ranges <- new_ranges_three
+    
+    
+    
+    # find
   }
   else{
     prt <- IRanges(start=d$start, end=d$stop, names=d$gene)
@@ -156,8 +187,8 @@ for(i in 1:length(args)){
   eval(parse(text=args[[i]]))
 }
 
-#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_all.txt"
-#output_folder="/home/ppola/bva/fastgen/fastGENdesigner/inputs_outputs"
+#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input.txt"
+#output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
 
 main(input_file, output_folder)
 

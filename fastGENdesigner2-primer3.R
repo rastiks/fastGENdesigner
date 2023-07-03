@@ -14,7 +14,7 @@
 
 
 # primer 3 configuration!!!
-.callP3NreadOrg<-function(seq,ROI_start = 100, ROI_width=3,size_range='30-500',Tm=c(54,59,63),name, # <-----------------------------------roi_width
+.callP3NreadOrg<-function(seq,ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63),name, # <-----------------------------------roi_width
                           primer3="/home/ppola/primer3/primer3-2.6.1/src/primer3_core",
                           thermo.param="/home/ppola/primer3/primer3-2.6.1/src/primer3_config/",
                           settings="/home/ppola/primer3/primer3-2.6.1/settings_files/primer3_v1_1_4_default_settings.txt"){
@@ -107,7 +107,7 @@
 
 ############################## primer_design - using external program PRIMER3    ###############
 
-primer3caller <- function(input_file, path_to_files){
+primer3caller <- function(input_file, path_to_files, size_range){
   d <- read.delim(input_file, header=T) 
   
   # if only gene in input -> exons wanted, else ROIs wanted
@@ -140,9 +140,17 @@ primer3caller <- function(input_file, path_to_files){
   for(i in 1:length(res)) 
   {
     # calling PRIMER3 for padded sequence with parameters: ROI start (padding_number), ROI width, size range of wanted region, melting temperatures
-    primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_start = padding_number, ROI_width=width[i],size_range = '150-250',Tm=c(52,59,65))  
+    primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_start = padding_number, ROI_width=width[i],size_range = size_range,Tm=c(52,59,65))  
     
     # check if primers were found
+    if (!(is.integer(nrow(primers)))) {
+      message(paste("For sequence number",i, names(res[i]), "no primer was found. Trying size range: 50-300" ))
+      primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_start = padding_number, ROI_width=width[i],size_range = "50-300",Tm=c(52,59,65)) 
+      if (is.integer(nrow(primers))) {
+        message("Primers found")
+      }
+    }
+    
     if (is.integer(nrow(primers))) {
       reps <- nrow(primers) 
       scores=c(rep(".", reps))     
@@ -151,35 +159,33 @@ primer3caller <- function(input_file, path_to_files){
       
       # add left and right primers to df_primers_complete dataframe
       # why - padding_number??
-      df_primer_LEFT <- data.frame(seqnames=res[i]@seqnames@values,  start=primers$PRIMER_LEFT_pos+res[i]@ranges@start-padding_number, end=primers$PRIMER_LEFT_pos-padding_number+res[i]@ranges@start+primers$PRIMER_LEFT_len, names = paste(names(res)[i], primers$i, sep="_"),scores=scores,strand=strands_left)
-      df_primer_RIGHT <- data.frame(seqnames=res[i]@seqnames@values,  start=primers$PRIMER_RIGHT_pos+res[i]@ranges@start-padding_number-primers$PRIMER_RIGHT_len+1,end=primers$PRIMER_RIGHT_pos+res[i]@ranges@start-padding_number-1, names = paste(names(res)[i], primers$i, sep="_"),scores=scores,strand=strands_right)
+      df_primer_LEFT <- data.frame(seqnames=res[i]@seqnames@values,  start=primers$PRIMER_LEFT_pos+res[i]@ranges@start-padding_number, end=primers$PRIMER_LEFT_pos-padding_number+res[i]@ranges@start+primers$PRIMER_LEFT_len, names = paste(names(res)[i], paste("p",primers$i,sep=""), sep="_"),scores=scores,strand=strands_left)
+      df_primer_RIGHT <- data.frame(seqnames=res[i]@seqnames@values,  start=1+primers$PRIMER_RIGHT_pos+res[i]@ranges@start-padding_number-primers$PRIMER_RIGHT_len, end=primers$PRIMER_RIGHT_pos+res[i]@ranges@start-padding_number + 1 , names = paste(names(res)[i], paste("p",primers$i,sep=""), sep="_"),scores=scores,strand=strands_right)
       df_primer <- rbind(df_primer_LEFT,df_primer_RIGHT)
       df_primers_complete <- rbind(df_primers_complete,df_primer)     
       
       # sequences for primerpooler
-      seq_name <- paste(names = names(res)[i],primers$i,"L", sep='_')
-      seq_name <- c(seq_name, paste(names = names(res)[i],primers$i,"R", sep='_'))
+      seq_name <- paste(df_primer_RIGHT$names,"-F", sep='')
+      seq_name <- c(seq_name, paste(df_primer_LEFT$names,"-R", sep=''))
       
       list_of_primer_seq <- primers$PRIMER_LEFT_SEQUENCE
       list_of_primer_seq <- c(list_of_primer_seq, primers$PRIMER_RIGHT_SEQUENCE)
       
       write.fasta(sequences = as.list(list_of_primer_seq), names = seq_name,file.out = paste(path_to_files,'primers.fasta', sep="/"),open = "a")
     }
-    else
-    {message(paste("For sequence number ",i, names(res[i]), "no primer was found"))}
   }
-  
   write.table(df_primers_complete, file=paste(path_to_files,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
 }
 
-main <- function(input_file, output_folder){
+main <- function(input_file, output_folder, size_range){
   message("Starting step2 - primer3")
   message("Loading packages")
   suppressMessages(library(seqinr))
   suppressMessages(library(GenomicRanges))
   suppressMessages(library(Biostrings))
-  suppressWarnings(primer3caller(input_file, output_folder))
+  suppressWarnings(primer3caller(input_file, output_folder, size_range))
   message("Done")
+  message("")
 }
 
 # ARGS
@@ -189,7 +195,11 @@ for(i in 1:length(args)){
   eval(parse(text=args[[i]]))
 }
 
-#input_file="/home/ppola/bva/fastgen/fastGENdesigner/input.txt"
-#output_folder="/home/ppola/bva/fastgen/fastGENdesigner"
+#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input.txt"
+#output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
 
-main(input_file, output_folder)
+if (length(args) < 3) {
+  size_range = "50-170"
+}
+
+main(input_file, output_folder, size_range)

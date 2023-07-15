@@ -35,6 +35,9 @@ fastGENdesigner will design primers for **all exons** of the given gene.
 2. ROIs coordinates and gene name - see example <em>input_all.txt</em>  
 fastGENdesigner will design primers for **ROIs**. 
 
+3. Chromosomal coordinates - see example <em>input_c.txt</em>.
+
+
 ### Possible outputs:
 - Modul1:  
 1. **EXONS**  
@@ -51,7 +54,8 @@ ROIs_full_sequences.fasta: prolonged ROIs sequences
 primers.bed: bed file for designed primers  
 primers.fasta: primers sequences
 
-
+- Modul3:
+poolfiles - primer pooler output
 
 
 

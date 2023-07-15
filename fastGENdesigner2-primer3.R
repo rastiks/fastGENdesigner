@@ -17,7 +17,8 @@
 .callP3NreadOrg<-function(seq,ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63),name, # <-----------------------------------roi_width
                           primer3="/home/ppola/primer3/primer3-2.6.1/src/primer3_core",
                           thermo.param="/home/ppola/primer3/primer3-2.6.1/src/primer3_config/",
-                          settings="/home/ppola/primer3/primer3-2.6.1/settings_files/primer3_v1_1_4_default_settings.txt"){
+                          #settings="/home/ppola/primer3/primer3-2.6.1/settings_files/primer3_v1_1_4_default_settings.txt"){
+                          settings="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/primer3_settings.txt"){
   
   # make primer 3 input file
   p3.input=tempfile()
@@ -111,9 +112,13 @@ primer3caller <- function(input_file, path_to_files, size_range){
   d <- read.delim(input_file, header=T) 
   
   # if only gene in input -> exons wanted, else ROIs wanted
-  if (length(d)  == 1) {
+  if (length(d) == 1) {
     padding_number <- 100
-    name_file <- "exons"} else {
+    name_file <- "exons"} 
+  else if (length(d) == 4) {
+    padding_number <- 100
+    name_file <- "ROIs"}
+  else{
       padding_number <- 200
       name_file <- "ROIs"
     }
@@ -195,7 +200,7 @@ for(i in 1:length(args)){
   eval(parse(text=args[[i]]))
 }
 
-#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input.txt"
+#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
 #output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
 
 if (length(args) < 3) {

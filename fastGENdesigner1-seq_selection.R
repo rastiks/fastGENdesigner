@@ -289,6 +289,8 @@ for(i in 1:length(args)){
 
 #input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
 #output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+#input_file="/home/rastik/primer3/src/inputH3F3A.txt"
+#output_folder="/home/rastik/primer3/src/outputs"
 
 main(input_file, output_folder)
 

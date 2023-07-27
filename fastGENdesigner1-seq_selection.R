@@ -30,7 +30,6 @@ saving_files <- function(d, my_rois_final, output_folder,my_start,my_end, my_roi
   # FASTA
   names(my_rois_seq) <- names(my_rois_final)
   writeXStringSet(my_rois_seq,file = paste(output_folder,paste(name_file,"_full_sequences.fasta",sep=""),sep="/"),format="fasta", append=TRUE)
-  
 }
 
 width_adjusting <- function(my_rois) {
@@ -135,8 +134,10 @@ seq_selection <- function(input_file,output_folder) {
     # VLOZIT DO FUNKCIE
     prolong <- 100
     my_rois_final <- width_adjusting(my_rois)
-    my_chrom <- inverse_rle(my_rois_final@seqnames)
-    my_chrom <- paste("chr",my_chrom,sep="")
+    #my_chrom <- inverse_rle(my_rois_final@seqnames) # zla prerobit
+    #my_chrom <- paste("chr",my_chrom,sep="")
+    my_chrom <- d$chrom
+    #my_chrom <- rep(levels(my_rois_final@seqnames@values),length(my_rois_final))
     my_start <- my_rois_final@ranges@start - prolong # problem
     my_end <- my_rois_final@ranges@start + my_rois_final@ranges@width + prolong 
     my_rois_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
@@ -174,7 +175,7 @@ seq_selection <- function(input_file,output_folder) {
       message(paste("Trancript ID:",trans_id, sep=" "))
       message(paste("Protein ID:",prot_id, sep=" "))
       message("Please check the MANE SELECT here:")
-      message(paste("https://www.ensembl.org/Homo_sapiens/Location/View?db=core;g=ENSG00000163041;r=1:226062716-226072019;t=",trans_id,sep=""))
+      message(paste("https://www.ensembl.org/Homo_sapiens/Location/View?db=core;g=ENSG00000163041;r=1:226062716-226072019;t=",trans_id,sep="")) #also G
       message(paste("https://www.lrg-sequence.org/search/?query=",my_gene,sep=""))
       message(paste("https://www.genenames.org/data/gene-symbol-report/#!/symbol/",my_gene,sep=""))
       message(paste("https://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=",my_gene,sep=""))
@@ -289,6 +290,8 @@ for(i in 1:length(args)){
 
 #input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
 #output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+#input_file="/home/rastik/primer3/src/inputH3F3A.txt"
+#output_folder="/home/rastik/primer3/src/outputs"
 
 main(input_file, output_folder)
 

@@ -13,11 +13,10 @@
 #' 
 
 
-# primer 3 configuration!!!
-.callP3NreadOrg<-function(seq,ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63),name, # <-----------------------------------roi_width
+# !!! primer 3 configuration NEEDED !!! <-----------------
+.callP3NreadOrg<-function(seq,ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63),name, 
                           primer3="/home/ppola/primer3/primer3-2.6.1/src/primer3_core",
                           thermo.param="/home/ppola/primer3/primer3-2.6.1/src/primer3_config/",
-                          #settings="/home/ppola/primer3/primer3-2.6.1/settings_files/primer3_v1_1_4_default_settings.txt"){
                           settings="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/primer3_settings.txt"){
   
   # make primer 3 input file
@@ -45,9 +44,9 @@
     ,
     p3.input
   )
-  #call primer 3 and store the output in a temporary file
+  # CALLING PRIMER3
   try(system(
-    paste(primer3 ,p3.input, "-p3_settings_file",settings, 
+    paste(primer3 ,p3.input, "--p3_settings_file",settings, 
           ">", p3.output)
   ))
   
@@ -56,8 +55,16 @@
   
   unlink(c(p3.input,p3.output) ) # delete temp files
   returned.primers=as.numeric(as.vector(out[out[,1]=='PRIMER_PAIR_NUM_RETURNED',][,2]))
-  if (length(returned.primers)==0){ warning('primers not detected for ',name,call. = FALSE);return(NA)}
-  if ((returned.primers)==0){ warning('primers not detected for ',name,call. = FALSE);return(NA)}
+  if (length(returned.primers)==0){
+    # SAVING STATISTICS if no primer was found
+    write.csv(out, file=paste(output_folder, "statistics_primer3.txt", sep="/"),append=TRUE)
+    return(NA)
+    }
+  if ((returned.primers)==0){ 
+    # SAVING STATISTICS if no primer was found
+    write.table(out, file=paste(output_folder, "statistics_primer3.txt", sep="/"),append=TRUE)
+    return(NA)}
+  
   if (returned.primers>0){
     designed.primers=data.frame()
     for (i in seq(0,returned.primers-1,1)){
@@ -142,14 +149,15 @@ primer3caller <- function(input_file, path_to_files, size_range){
   
   
   # for loop through bed file
-  for(i in 1:length(res)) 
-  {
+  primers_table <- data.frame()
+  for(i in 1:length(res)) {
     # calling PRIMER3 for padded sequence with parameters: ROI start (padding_number), ROI width, size range of wanted region, melting temperatures
-    primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_start = padding_number, ROI_width=width[i],size_range = size_range,Tm=c(52,59,65))  
+    primers<-.callP3NreadOrg(seq=seq_complete[i],name = names(seq_complete)[i], ROI_start = padding_number, ROI_width=width[i],size_range = size_range,Tm=c(52,59,65))  
     
     # check if primers were found
     if (!(is.integer(nrow(primers)))) {
       message(paste("For sequence number",i, names(res[i]), "no primer was found. Trying size range: 50-300" ))
+      # TO DO: pridat algoritmus na spatne volanie
       primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_start = padding_number, ROI_width=width[i],size_range = "50-300",Tm=c(52,59,65)) 
       if (is.integer(nrow(primers))) {
         message("Primers found")
@@ -177,9 +185,20 @@ primer3caller <- function(input_file, path_to_files, size_range){
       list_of_primer_seq <- c(list_of_primer_seq, primers$PRIMER_RIGHT_SEQUENCE)
       
       write.fasta(sequences = as.list(list_of_primer_seq), names = seq_name,file.out = paste(path_to_files,'primers.fasta', sep="/"),open = "a")
-    }
+      
+      # primer properties
+      primers_table <- rbind(primers_table, 
+                             data.frame(seq_name,list_of_primer_seq,
+                                        c(primers$PRIMER_LEFT_TM,primers$PRIMER_RIGHT_TM),
+                                        c(primers$PRIMER_LEFT_GC_PERCENT, primers$PRIMER_RIGHT_GC_PERCENT),
+                                        rep(primers$PRIMER_PAIR_PRODUCT_SIZE,2)))
+      }
   }
   write.table(df_primers_complete, file=paste(path_to_files,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
+  
+  # SAVING PRIMER PROPERTIES
+  colnames(primers_table) <- c("Name", "Sequence", "Tm", "GC Content", "Product Size")
+  write.xlsx(primers_table,paste(path_to_files,"primers_properties.xlsx", sep ="/"))
 }
 
 main <- function(input_file, output_folder, size_range){
@@ -188,6 +207,7 @@ main <- function(input_file, output_folder, size_range){
   suppressMessages(library(seqinr))
   suppressMessages(library(GenomicRanges))
   suppressMessages(library(Biostrings))
+  suppressMessages(library(openxlsx)) 
   suppressWarnings(primer3caller(input_file, output_folder, size_range))
   message("Done")
   message("")
@@ -196,12 +216,15 @@ main <- function(input_file, output_folder, size_range){
 # ARGS
 args = commandArgs(trailingOnly=TRUE)
 
-for(i in 1:length(args)){
-  eval(parse(text=args[[i]]))
+if (length(args)>0) {
+  for(i in 1:length(args)){
+    eval(parse(text=args[[i]]))
+  }
+} else {
+  # ONLY FOR TOOL DEVELOPMENT
+  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
+  output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
 }
-
-#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
-#output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
 
 if (length(args) < 3) {
   size_range = "50-170"

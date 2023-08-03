@@ -1,3 +1,4 @@
+# INSTALLATION
 #BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
 #BiocManager::install("EnsDb.Hsapiens.v86") 
 
@@ -33,6 +34,7 @@ saving_files <- function(d, my_rois_final, output_folder,my_start,my_end, my_roi
 }
 
 width_adjusting <- function(my_rois) {
+  # Function for splitting the longer exons than 150bp
   my_width <-my_rois@ranges@width
   longer_than_150 <- which(my_width>150)
   problems <- my_rois[longer_than_150]
@@ -107,6 +109,8 @@ inverse_rle <- function(rle_object) {
 
 
 seq_selection <- function(input_file,output_folder) {
+  # MAIN function for MODUL1 - finds the type of input, chooses MANE SELECT, 
+  # adjusts the size, prolongs the seqs and saves all
   
   # ENSEMBL DATABASE
   edb <- EnsDb.Hsapiens.v86
@@ -114,16 +118,17 @@ seq_selection <- function(input_file,output_folder) {
   # INPUTS
   d <- read.delim(input_file, header=T) 
 
-  # <------------------- my_code
+  # CHROMOSOMAL LOCATIONS
   if (length(d) == 4) {
     message("Chromosomal locations were given.")
     
-    # in case of 
+    # MISSING HEADLINE
     if (sum(colnames(d) == c("chrom","start","stop", "name")) != 4) {
       first_row <- colnames(d)
       colnames(d) <- c("chrom","start","stop", "name")
       d <- rbind(first_row, d)
     }
+    
     # TO DO  - rozdelit kod do podfunkcii - kontrola vstupu, rozdelenie dlhsich usekov
     my_rois <- GRanges(
       seqnames = Rle(d$chrom,rep(1,nrow(d))),
@@ -131,13 +136,10 @@ seq_selection <- function(input_file,output_folder) {
       strand = Rle(strand("+"), nrow(d))
     )
     
-    # VLOZIT DO FUNKCIE
+    # TO DO - VLOZIT DO FUNKCIE
     prolong <- 100
     my_rois_final <- width_adjusting(my_rois)
-    #my_chrom <- inverse_rle(my_rois_final@seqnames) # zla prerobit
-    #my_chrom <- paste("chr",my_chrom,sep="")
     my_chrom <- d$chrom
-    #my_chrom <- rep(levels(my_rois_final@seqnames@values),length(my_rois_final))
     my_start <- my_rois_final@ranges@start - prolong # problem
     my_end <- my_rois_final@ranges@start + my_rois_final@ranges@width + prolong 
     my_rois_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
@@ -147,18 +149,21 @@ seq_selection <- function(input_file,output_folder) {
   }
   
   else {
+  # INPUT A or B - all exons or ROIs
+    
   # MANE select
   message("These genes were given:")
   for (my_gene in unique(d$gene)) message(my_gene)
   message("")
   mane_gff <- readGFF("MANE.GRCh38.v1.0.ensembl_genomic.gff.gz")
-  for (my_gene in unique(d$gene)) {
+  
+  # for loop in case of there are more genes than one given
+  for (my_gene in unique(d$gene)) { 
     message(paste("Working on ", my_gene))
     message("Searching for MANE SELECT")# check if gene name is correct
     
     if (my_gene %in% mane_gff$gene_name) message("MANE SELECT found")
     else {
-      #message("Cannot find MANE SELECT, please try different gene name.")
       stop("Cannot find MANE SELECT, please try different gene name")
     }
     
@@ -169,13 +174,17 @@ seq_selection <- function(input_file,output_folder) {
     trans_id <- unique(mane_gff[mane_gff$gene_name == my_gene,"transcript_id"])
     trans_id <- trans_id[!is.na(trans_id)]
     
+    gene_id <-  unique(mane_gff[mane_gff$gene_name == my_gene,"gene_id"])
+    gene_id <- gene_id[!is.na(gene_id)]
+    
     if (length(prot_id) == 1) {
+      # URL generator
       prot_id <- unlist(strsplit(prot_id, split="[.]"))[1]
       trans_id <- unlist(strsplit(trans_id, split="[.]"))[1]
       message(paste("Trancript ID:",trans_id, sep=" "))
       message(paste("Protein ID:",prot_id, sep=" "))
       message("Please check the MANE SELECT here:")
-      message(paste("https://www.ensembl.org/Homo_sapiens/Location/View?db=core;g=ENSG00000163041;r=1:226062716-226072019;t=",trans_id,sep="")) #also G
+      message(paste("https://www.ensembl.org/Homo_sapiens/Location/View?db=core;g=",gene_id, sep=""))
       message(paste("https://www.lrg-sequence.org/search/?query=",my_gene,sep=""))
       message(paste("https://www.genenames.org/data/gene-symbol-report/#!/symbol/",my_gene,sep=""))
       message(paste("https://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=",my_gene,sep=""))
@@ -186,7 +195,7 @@ seq_selection <- function(input_file,output_folder) {
       stop("Found multiple MANE SELECT??, please choose the right one manually from:")
     }
     
-    # WE WANT ALL EXONS
+    # EXONS
     if (length(d)  == 1) {
       # get all exons of our target gene
       message(paste("Checking exons for", my_gene,sep = " "))
@@ -194,7 +203,6 @@ seq_selection <- function(input_file,output_folder) {
       
       # delete UTR
       message("Removing UTRs")
-      #message("-------------------------------------------------------")
       message("")
       five_utr <- (fiveUTRsByTranscript(edb, filter= ~ protein_id == prot_id))@unlistData
       three_utr <- (threeUTRsByTranscript(edb, filter= ~ protein_id == prot_id))@unlistData
@@ -221,13 +229,14 @@ seq_selection <- function(input_file,output_folder) {
       new_ranges_three <- IRanges(start = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@start) , width = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@width) - three_utr@ranges@width + 5)
       my_rois[names((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges)]@ranges <- new_ranges_three
       
-      # NAME THE OUTPUT - genename_ex_number_refseqID
+      # NAME OF THE OUTPUT - genename_ex_number_refseqID
       my_exon_nums <- c()
       for (n in 1:length(my_rois)) my_exon_nums<- c(my_exon_nums,mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"exon_number"][grep(my_rois$exon_id[n],(mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"exon_id"]))])
       refseq <- regmatches(unique(unlist(mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"Dbxref"])),regexpr("NM_\\d+[.]\\d",unique(unlist(mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"Dbxref"]))))
       names(my_rois) <- paste(my_gene,"ex",my_exon_nums, refseq,sep="_")
     }
     
+    # ROIS
     else{ 
       sub_input <- d[d$gene == my_gene,]
       prt <- IRanges(start=sub_input$start, end=sub_input$stop, names=rep(prot_id,nrow(sub_input)))
@@ -240,15 +249,17 @@ seq_selection <- function(input_file,output_folder) {
         }
       }
       
-      #names(my_rois) <- paste(my_rois$exon_id,my_rois$protein_start,my_rois$protein_end,sep='_') # HOW TO NAME THIS???
       my_exon_nums <- c()
       for (n in 1:length(my_rois)) my_exon_nums<- c(my_exon_nums,mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"exon_number"][grep(my_rois$exon_id[n],(mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"exon_id"]))])
       refseq <- regmatches(unique(unlist(mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"Dbxref"])),regexpr("NM_\\d+[.]\\d",unique(unlist(mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"Dbxref"]))))
       names(my_rois) <- paste(my_gene,"ex",my_exon_nums, refseq, my_rois$protein_start,my_rois$protein_end, sep="_")
     }
+    
+    # deal with longer than 150bp seqs
     my_rois_final <- width_adjusting(my_rois)
     
     # get sequences for primer design -100...exon....+100 or -200...roi....+200
+    # TO DO : hodit do funkcie
     if (length(d)  == 1) prolong <- 100
     else prolong <- 200
     
@@ -284,14 +295,17 @@ main <- function(input_file, output_folder){
 # ARGS
 args = commandArgs(trailingOnly=TRUE)
 
-for(i in 1:length(args)){
-  eval(parse(text=args[[i]]))
+if (length(args)>0) {
+  for(i in 1:length(args)){
+    eval(parse(text=args[[i]]))
+  }
+} else {
+  # ONLY FOR TOOL DEVELOPMENT
+  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_all.txt"
+  output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+  #input_file="/home/rastik/primer3/src/inputH3F3A.txt"
+  #output_folder="/home/rastik/primer3/src/outputs"
 }
-
-#input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
-#output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
-#input_file="/home/rastik/primer3/src/inputH3F3A.txt"
-#output_folder="/home/rastik/primer3/src/outputs"
 
 main(input_file, output_folder)
 

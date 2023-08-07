@@ -12,30 +12,35 @@
 #' @example
 #' 
 
-
 # !!! primer 3 configuration NEEDED !!! <-----------------
-.callP3NreadOrg<-function(seq,ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63),name, 
-                          primer3="/home/ppola/primer3/primer3-2.6.1/src/primer3_core",
-                          thermo.param="/home/ppola/primer3/primer3-2.6.1/src/primer3_config/",
-                          settings="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/primer3_settings.txt"){
+.callP3NreadOrg<-function(input_list = list(seq = "ACGT",ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63),
+                          TmDiff = 3, name="unnamed", 
+                          PolyX=6, PrimerSize=c(18,20,23), PrimerGC=c(30,50,70), comment=""),
+                          primer3="~/primer3/primer3-2.6.1/src/primer3_core",
+                          thermo.param="~/primer3/primer3-2.6.1/src/primer3_config/",
+                          settings="fastGENdesigner_files/primer3_settings.txt"){
   
   # make primer 3 input file
   p3.input=tempfile()
   p3.output=tempfile()
-  ROI_target=paste(ROI_start,",",ROI_width)
+  ROI_target=paste(input_list$ROI_start,",",input_list$ROI_width)
+  
   write(
-    paste( sprintf("SEQUENCE_ID=%s\n",name  ),
-           sprintf("SEQUENCE_TEMPLATE=%s\n",as.character(seq)),
+    paste( sprintf("SEQUENCE_ID=%s\n",input_list$name),
+           sprintf("SEQUENCE_TEMPLATE=%s\n",as.character(input_list$seq)),
            "PRIMER_TASK=pick_detection_primers\n",
            "PRIMER_PICK_LEFT_PRIMER=1\n" ,
            "PRIMER_PICK_INTERNAL_OLIGO=0\n",
            "PRIMER_PICK_RIGHT_PRIMER=1\n"  ,
            "PRIMER_EXPLAIN_FLAG=1\n"  ,
-           "PRIMER_PAIR_MAX_DIFF_TM=3\n",
-           sprintf("PRIMER_MIN_TM=%s\n" ,Tm[1]),
-           sprintf("PRIMER_OPT_TM=%s\n" ,Tm[2]),
-           sprintf("PRIMER_MAX_TM=%s\n" ,Tm[3]),
-           sprintf("PRIMER_PRODUCT_SIZE_RANGE=%s\n" ,size_range),
+           sprintf("PRIMER_PAIR_MAX_DIFF_TM=%s\n", input_list$TmDiff),
+           sprintf("PRIMER_MIN_TM=%s\n" ,input_list$Tm[1]),
+           sprintf("PRIMER_OPT_TM=%s\n" ,input_list$Tm[2]),
+           sprintf("PRIMER_MAX_TM=%s\n" ,input_list$Tm[3]),
+           sprintf("PRIMER_MAX_POLY_X=%s\n" ,input_list$PolyX),
+           sprintf("PRIMER_MIN_SIZE=%s\n" ,input_list$PrimerSize[1]),
+           sprintf("PRIMER_MAX_GC=%s\n" ,input_list$PrimerGC[3]),
+           sprintf("PRIMER_PRODUCT_SIZE_RANGE=%s\n" ,input_list$size_range),
            sprintf("SEQUENCE_TARGET=%s\n",ROI_target),    # width ,ROI_width 
            sprintf("PRIMER_THERMODYNAMIC_PARAMETERS_PATH=%s\n" ,thermo.param),
            "=",
@@ -45,11 +50,11 @@
     p3.input
   )
   # CALLING PRIMER3
+
   try(system(
     paste(primer3 ,p3.input, "--p3_settings_file",settings, 
           ">", p3.output)
   ))
-  
   #import and parse the output into a dataframe named designed.primers
   out=read.delim(p3.output, sep='=', header=FALSE)
   
@@ -58,14 +63,20 @@
   if (length(returned.primers)==0){
     # SAVING STATISTICS if no primer was found
     write.csv(out, file=paste(output_folder, "statistics_primer3.txt", sep="/"),append=TRUE)
+    if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2717", sep = " "))  
+    else message(paste(input_list$name, "\u2717", sep = " "))
     return(NA)
     }
   if ((returned.primers)==0){ 
     # SAVING STATISTICS if no primer was found
     write.table(out, file=paste(output_folder, "statistics_primer3.txt", sep="/"),append=TRUE)
+    if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2717", sep = " "))
+    else message(paste(input_list$name, "\u2717", sep = " "))
     return(NA)}
   
   if (returned.primers>0){
+    if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2713", sep = " "))  
+    else message(paste(input_list$name, "\u2713", sep = " "))
     designed.primers=data.frame()
     for (i in seq(0,returned.primers-1,1)){
       #IMPORT SEQUENCES
@@ -112,24 +123,72 @@
   return(designed.primers)
 }
 
+resizing_step <- function(resizing,primers_table, input_type, output_folder){
+  # delete primers that was already created - for example part 2 was not but part 1 was
+  resizing <- gsub("(_\\d)*$", "",resizing)
+  for (i in 1:length(resizing)) {
+    if (length(grep(resizing[i], primers_table$seq_name))>0) {
+      primers_table <- primers_table[-(grep(resizing[i], primers_table$seq_name)),]
+    }
+  }
+  new_genes <- unique(gsub("_ex_.*","",resizing))
+  if (input_type =="A") {
+    new_input <- data.frame("gene"=new_genes)
+    exons <- regmatches(resizing, regexpr(".+ex(_\\d+)", resizing)) # TO DO : toto musi byt v liste ak je v resizingu viac genov
+    }
+    write.csv(new_input, paste(output_folder,"input_resizing.txt", sep="/"), row.names=FALSE, quote = FALSE)
+    return(list(primers_table, exons))
+  # TO DO : INPUT TYPE B AND C
+    
+}
+
+merging_files <- function(output_folder){
+  files <- list.files(path = output_folder, pattern="(ROIs)|(exons)", full.names = T) 
+
+  # orig bed
+  orig <- read.csv(files[grep("^.bed$",basename(gsub("exons|ROIs","",files)))], sep = "\t", header=FALSE)
+  orig_resize <- read.csv(files[grep("^_resizing.bed$",basename(gsub("exons|ROIs","",files)))], sep = "\t", header=FALSE)
+  resize_names <- unique(gsub("_\\d+$","",orig_resize$V4))
+  bool_var <- gsub("_\\d+$","",orig$V4) %in% unique(gsub("_\\d+$","",orig_resize$V4))
+  orig <- orig[bool_var,]
+  orig <- rbind(orig,orig_resize)
+  write.table(orig,files[grep("^.bed$",basename(gsub("exons|ROIs","",files)))],quote=FALSE,row.names=FALSE, col.names = FALSE, sep="\t")
+  unlink(files[grep("^_resizing.bed$",basename(gsub("exons|ROIs","",files)))])
+  
+  # full seqs bed
+  orig <- read.csv(files[grep("^_full_seqs.bed$",basename(gsub("exons|ROIs","",files)))], sep = "\t", header=FALSE)
+  orig_resize <- read.csv(files[grep("^_resizing_full_seqs.bed$",basename(gsub("exons|ROIs","",files)))], sep = "\t", header=FALSE)
+  orig <- orig[bool_var,]
+  orig <- rbind(orig,orig_resize)
+  write.table(orig,files[grep("^_full_seqs.bed$",basename(gsub("exons|ROIs","",files)))],quote=FALSE,row.names=FALSE, col.names = FALSE, sep="\t")
+  unlink(files[grep("^_resizing_full_seqs.bed$",basename(gsub("exons|ROIs","",files)))])
+  
+  # fasta
+  orig <- readDNAStringSet(files[grep("^_full_sequences.fasta$",basename(gsub("exons|ROIs","",files)))])
+  orig_resize <-readDNAStringSet(files[grep("^_resizing_full_sequences.fasta$",basename(gsub("exons|ROIs","",files)))])
+  orig <- orig[bool_var,]
+  orig <- c(orig,orig_resize)
+  writeXStringSet(orig,files[grep("^_full_sequences.fasta$",basename(gsub("exons|ROIs","",files)))])
+  unlink(files[grep("^_resizing_full_sequences.fasta$",basename(gsub("exons|ROIs","",files)))])
+  
+  # input
+  unlink(paste(output_folder, "input_resizing.txt", sep ="/"))
+  }
 
 ############################## primer_design - using external program PRIMER3    ###############
 
-primer3caller <- function(input_file, path_to_files, size_range){
+primer3caller <- function(input_file, path_to_files, size_range, input_type, primer3_path){
   d <- read.delim(input_file, header=T) 
   
   # if only gene in input -> exons wanted, else ROIs wanted
-  if (length(d) == 1) {
+  if (input_type =="A") {
     padding_number <- 100
     name_file <- "exons"} 
-  else if (length(d) == 4) {
-    padding_number <- 100
+  else {
+    padding_number <- 200
     name_file <- "ROIs"}
-  else{
-      padding_number <- 200
-      name_file <- "ROIs"
-    }
   
+  if (grepl("input_resizing.txt", input_file)) name_file <- paste(name_file, "resizing", sep="_")
   # full padded sequences
   seq_complete <- readDNAStringSet(paste(path_to_files,"/",name_file,"_full_sequences.fasta", sep=""))
   
@@ -146,23 +205,49 @@ primer3caller <- function(input_file, path_to_files, size_range){
   list_of_primer_seq <- list()
   df_primers_complete <-data.frame()
   primers = NULL
-  
-  
   # for loop through bed file
   primers_table <- data.frame()
+  resizing <- c()
   for(i in 1:length(res)) {
+    my_list <- list(seq = seq_complete[i], ROI_start = padding_number, ROI_width = width[i], 
+                    size_range = size_range, Tm = c(54,59,63), TmDiff = 3, name = names(seq_complete)[i], 
+                    PolyX = 4, PrimerSize=c(18,20,23), PrimerGC=c(30,50,70), comment="")
+    # check if sequence is not already in the resizing vector
+    if (length(grep(substring(my_list$name,1,nchar(my_list$name)-1), resizing))>0) next
+    
+    primers<-.callP3NreadOrg(input_list = my_list,
+                             primer3=primer3_path,
+                             thermo.param=paste(substring(primer3_path,1,regexpr("/src/",primer3_path)+4),"primer3_config",sep="")) 
+    
     # calling PRIMER3 for padded sequence with parameters: ROI start (padding_number), ROI width, size range of wanted region, melting temperatures
-    primers<-.callP3NreadOrg(seq=seq_complete[i],name = names(seq_complete)[i], ROI_start = padding_number, ROI_width=width[i],size_range = size_range,Tm=c(52,59,65))  
+    #primers<-.callP3NreadOrg(seq=seq_complete[i],name = names(seq_complete)[i], 
+    #                         ROI_start = padding_number, ROI_width=width[i],
+    #                         size_range = size_range,Tm=c(52,59,65),
+    #                         primer3=primer3_path,
+    #                         thermo.param=paste(substring(primer3_path,1,regexpr("/src/",primer3_path)+4),"primer3_config",sep=""))  
     
     # check if primers were found
-    if (!(is.integer(nrow(primers)))) {
-      message(paste("For sequence number",i, names(res[i]), "no primer was found. Trying size range: 50-300" ))
+    #if (!(is.integer(nrow(primers)))) {
+    n_try <- 1
+    while (!(is.integer(nrow(primers))) && (n_try != 6)) {
+      # spustit algoritmus
       # TO DO: pridat algoritmus na spatne volanie
-      primers<-.callP3NreadOrg(seq=seq_complete[i],name = "test", ROI_start = padding_number, ROI_width=width[i],size_range = "50-300",Tm=c(52,59,65)) 
-      if (is.integer(nrow(primers))) {
-        message("Primers found")
-      }
+      if (n_try ==1) {my_list$PolyX <- 6; my_list$comment <- "Increasing the PRIMER_MAX_POLY_X (4->6)"}
+      else if (n_try==2) {my_list$TmDiff <- 5; my_list$comment <- "Increasing the PRIMER_PAIR_MAX_DIFF_TM (3->5)"}
+      else if (n_try==3) {my_list$PrimerSize <- c(16,20,23) ; my_list$comment <- "Decreasing the PRIMER_MIN_SIZE (18->16)"}
+      else if (n_try==4) {my_list$Tm <- c(50,59,63) ; my_list$comment <- "Decreasing the PRIMER_MIN_TM (54->50)"}
+      else if (n_try==5) {my_list$PrimerGC <- c(30,50,75) ;  my_list$comment <- "Icreasing the PRIMER_MAX_GC (54->50)"}
+      
+      primers<-.callP3NreadOrg(input_list = my_list,
+                               primer3=primer3_path,
+                               thermo.param=paste(substring(primer3_path,1,regexpr("/src/",primer3_path)+4),"primer3_config",sep=""))
+      n_try <- n_try +1
     }
+    if (!(is.integer(nrow(primers)))) {
+      message("Primer design unsuccessful.")
+      resizing <- c(resizing,my_list$name)
+    }
+    message("")
     
     if (is.integer(nrow(primers))) {
       reps <- nrow(primers) 
@@ -184,7 +269,7 @@ primer3caller <- function(input_file, path_to_files, size_range){
       list_of_primer_seq <- primers$PRIMER_LEFT_SEQUENCE
       list_of_primer_seq <- c(list_of_primer_seq, primers$PRIMER_RIGHT_SEQUENCE)
       
-      write.fasta(sequences = as.list(list_of_primer_seq), names = seq_name,file.out = paste(path_to_files,'primers.fasta', sep="/"),open = "a")
+      #write.fasta(sequences = as.list(list_of_primer_seq), names = seq_name,file.out = paste(path_to_files,'primers.fasta', sep="/"),open = "a")
       
       # primer properties
       primers_table <- rbind(primers_table, 
@@ -194,23 +279,49 @@ primer3caller <- function(input_file, path_to_files, size_range){
                                         rep(primers$PRIMER_PAIR_PRODUCT_SIZE,2)))
       }
   }
-  write.table(df_primers_complete, file=paste(path_to_files,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
+  # calling resizing part 
+  if (length(resizing)>0) {
+    resized_return <- resizing_step(resizing, primers_table, input_type, path_to_files)
+    primers_table <- resized_return[[1]]
+    comment <- resized_return[[2]]
+    cat(comment)
+  }
+  
+  write.fasta(sequences = as.list(primers_table$list_of_primer_seq), names=primers_table$seq_name, file.out = paste(path_to_files,'primers.fasta', sep="/"), open= "a")
+  message("FASTA file created")
+  write.table(df_primers_complete, file=paste(path_to_files,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append = TRUE)
+  message("BED file created")
   
   # SAVING PRIMER PROPERTIES
+  # if we are at resizing part - append data
+  if (grepl("input_resizing.txt", input_file)) {
+    wb <- loadWorkbook(paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"))
+    my_data <- read.xlsx(wb,sheet = "Primer properties")
+    writeData(wb, sheet = "Primer properties", primers_table, startRow=nrow(my_data)+2, colNames=FALSE)
+  } else{
+  
   colnames(primers_table) <- c("Name", "Sequence", "Tm", "GC Content", "Product Size")
-  write.xlsx(primers_table,paste(path_to_files,"primers_properties.xlsx", sep ="/"))
+  wb <- createWorkbook(); addWorksheet(wb, sheetName ="Primer properties"); writeData(wb, sheet = "Primer properties", primers_table)
+  setColWidths(wb, "Primer properties", cols = 1:2, widths = "auto")
+  }
+  saveWorkbook(wb,paste(path_to_files,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
+  message("Primers' characteristics saved to Excel file: fastGENdesigner-output.xlsx")
+  
 }
 
-main <- function(input_file, output_folder, size_range){
-  message("Starting step2 - primer3")
-  message("Loading packages")
+main <- function(input_file, output_folder, size_range, input_type, primer3_path, resizing=FALSE){
+  message("Starting step2 - primer3 -> Looking for suitable primers")
   suppressMessages(library(seqinr))
   suppressMessages(library(GenomicRanges))
   suppressMessages(library(Biostrings))
   suppressMessages(library(openxlsx)) 
-  suppressWarnings(primer3caller(input_file, output_folder, size_range))
-  message("Done")
+  suppressWarnings(primer3caller(input_file, output_folder, size_range, input_type, primer3_path))
   message("")
+  
+  # merging files
+  if (grepl("input_resizing.txt", input_file)) {
+    merging_files(output_folder)
+  }
 }
 
 # ARGS
@@ -222,12 +333,11 @@ if (length(args)>0) {
   }
 } else {
   # ONLY FOR TOOL DEVELOPMENT
-  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
+  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs//inputs/input.txt"
   output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
-}
-
-if (length(args) < 3) {
+  input_type="A"
+  primer3_path="/home/ppola/primer3/primer3-2.6.1/src/primer3_core"
   size_range = "50-170"
 }
 
-main(input_file, output_folder, size_range)
+main(input_file, output_folder, size_range, input_type, primer3_path)

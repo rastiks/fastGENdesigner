@@ -10,7 +10,7 @@ if (length(args)>0) {
   output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
 }
 
-scores <- readLines(paste(output_folder,"poolfiles_score.txt", sep="/"))
+scores <- readLines(paste(output_folder,"pooler_output/poolfiles_score.txt", sep="/"))
 where <- grep("poolfile\\d",scores)
 where <- c(where, length(scores))
 

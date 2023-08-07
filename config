@@ -1,0 +1,5 @@
+# fastGENdesigner config file
+# Add your paths to the tools below
+
+primer3=/home/ppola/primer3/primer3-2.6.1/src/primer3_core
+primer_pooler=/home/ppola/pooler/pooler

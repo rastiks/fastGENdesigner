@@ -3,13 +3,14 @@
 #BiocManager::install("EnsDb.Hsapiens.v86") 
 
 
-saving_files <- function(d, my_rois_final, output_folder,my_start,my_end, my_rois_seq) {
-  if (length(d)  == 1) name_file <- "exons"
+saving_files <- function(d, my_rois_final, output_folder,my_start,my_end, my_rois_seq, input_type, comment="") {
+  if (input_type=="A") name_file <- "exons"
   else name_file <- "ROIs"
-  
+
+  if (nchar(comment)>0) name_file <- paste(name_file, "resizing", sep="_")
   # BED file - only exons
   df <- data.frame(seqnames=seqnames(my_rois_final),
-                   starts=start(my_rois_final)-1,
+                   starts=start(my_rois_final)-1, # because bed works with 0
                    ends=end(my_rois_final),
                    names=names(my_rois_final),
                    scores=c(rep(".", length(my_rois_final))),
@@ -27,20 +28,25 @@ saving_files <- function(d, my_rois_final, output_folder,my_start,my_end, my_roi
   
   
   write.table(df_complete_seq, file=paste(output_folder,paste(name_file,"_full_seqs.bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append=TRUE)
-  
+  message("BED files created")
   # FASTA
   names(my_rois_seq) <- names(my_rois_final)
   writeXStringSet(my_rois_seq,file = paste(output_folder,paste(name_file,"_full_sequences.fasta",sep=""),sep="/"),format="fasta", append=TRUE)
-}
+  message("FASTA files created")
+  }
 
-width_adjusting <- function(my_rois) {
+width_adjusting <- function(my_rois, input_type, max_length=150) {
   # Function for splitting the longer exons than 150bp
   my_width <-my_rois@ranges@width
-  longer_than_150 <- which(my_width>150)
+  longer_than_150 <- which(my_width>max_length)
   problems <- my_rois[longer_than_150]
-  if (length(problems)>0) my_rois <- my_rois[-longer_than_150]
   
   if (length(problems) >0){
+    my_rois <- my_rois[-longer_than_150]
+    # message for user
+    message(paste("These sequences are longer than ", max_length, "bp:", sep=""))
+    message(paste(names(problems), collapse = "\n"))
+    message("Starting width adjustment")
     # initialization
     my_starts <- c()
     my_names <- c()
@@ -50,10 +56,9 @@ width_adjusting <- function(my_rois) {
     my_strands <- c()
     my_starts <- c()
     my_widths <- c()
-    
     # deal with longer exons/ROIs - split them so they are < 150bp
     for (i in 1:length(problems)){
-      split_number <- ceiling(problems@ranges@width[i]/150)
+      split_number <- ceiling(problems@ranges@width[i]/max_length)
       
       # exon names
       my_names <- c(my_names,paste(rep(names(problems[i]), split_number),as.character(seq(1,split_number)),sep="_"))
@@ -102,13 +107,13 @@ width_adjusting <- function(my_rois) {
 inverse_rle <- function(rle_object) {
   result <- c()
   for (i in 1:length(rle_object@values)) {
-    result <- c(result,rep(rle_object@values[i],rle_object@lengths[i]))
+    result <- c(result,as.character(rep(rle_object@values[i],rle_object@lengths[i])))
   }
   return (result)
 }
 
 
-seq_selection <- function(input_file,output_folder) {
+seq_selection <- function(input_file,output_folder, comment) {
   # MAIN function for MODUL1 - finds the type of input, chooses MANE SELECT, 
   # adjusts the size, prolongs the seqs and saves all
   
@@ -118,9 +123,13 @@ seq_selection <- function(input_file,output_folder) {
   # INPUTS
   d <- read.delim(input_file, header=T) 
 
-  # CHROMOSOMAL LOCATIONS
+  # CHROMOSOMAL LOCATIONS - to do - INPUT CHECK
   if (length(d) == 4) {
-    message("Chromosomal locations were given.")
+    input_type = "C"
+    message("Chromosomal locations were given")
+    
+    # BED -> R - bed works from 0, R from 1
+    d$start <- d$start + 1
     
     # MISSING HEADLINE
     if (sum(colnames(d) == c("chrom","start","stop", "name")) != 4) {
@@ -137,15 +146,15 @@ seq_selection <- function(input_file,output_folder) {
     )
     
     # TO DO - VLOZIT DO FUNKCIE
-    prolong <- 100
+    prolong <- 200
     my_rois_final <- width_adjusting(my_rois)
-    my_chrom <- d$chrom
+    my_chrom <- inverse_rle(my_rois_final@seqnames)
     my_start <- my_rois_final@ranges@start - prolong # problem
     my_end <- my_rois_final@ranges@start + my_rois_final@ranges@width + prolong 
     my_rois_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
     my_rois_seq <- DNAStringSet(my_rois_seq)
     
-    saving_files(d, my_rois_final, output_folder,my_start,my_end, my_rois_seq)
+    saving_files(d, my_rois_final, output_folder,my_start,my_end, my_rois_seq, input_type)
   }
   
   else {
@@ -155,7 +164,7 @@ seq_selection <- function(input_file,output_folder) {
   message("These genes were given:")
   for (my_gene in unique(d$gene)) message(my_gene)
   message("")
-  mane_gff <- readGFF("MANE.GRCh38.v1.0.ensembl_genomic.gff.gz")
+  mane_gff <- readGFF("fastGENdesigner_files/MANE.GRCh38.v1.0.ensembl_genomic.gff.gz")
   
   # for loop in case of there are more genes than one given
   for (my_gene in unique(d$gene)) { 
@@ -197,9 +206,17 @@ seq_selection <- function(input_file,output_folder) {
     
     # EXONS
     if (length(d)  == 1) {
+      input_type = "A"
       # get all exons of our target gene
       message(paste("Checking exons for", my_gene,sep = " "))
       my_rois <- exons(edb, filter= ~ protein_id == prot_id)
+    
+      if (nchar(comment)>0) { # POZOR - tu si zjednodusujem pracu - predpokladam ze su exony po rade - kontrola spravnosti!
+        wanted  <- grep(my_gene,unlist(strsplit(comment, " ")), value=TRUE)
+        wanted <- gsub(paste(my_gene,"_", sep=""),"", wanted)
+        wanted <- as.integer(substring(wanted,4, nchar(wanted)))
+        my_rois <- my_rois[wanted]
+      }
       
       # delete UTR
       message("Removing UTRs")
@@ -229,6 +246,7 @@ seq_selection <- function(input_file,output_folder) {
       new_ranges_three <- IRanges(start = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@start) , width = ((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges@width) - three_utr@ranges@width + 5)
       my_rois[names((my_rois[my_rois$exon_id == three_utr$exon_id])@ranges)]@ranges <- new_ranges_three
       
+      
       # NAME OF THE OUTPUT - genename_ex_number_refseqID
       my_exon_nums <- c()
       for (n in 1:length(my_rois)) my_exon_nums<- c(my_exon_nums,mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"exon_number"][grep(my_rois$exon_id[n],(mane_gff[(mane_gff$gene_name == my_gene) & mane_gff$type =="exon" ,"exon_id"]))])
@@ -238,6 +256,7 @@ seq_selection <- function(input_file,output_folder) {
     
     # ROIS
     else{ 
+      input_type = "B"
       sub_input <- d[d$gene == my_gene,]
       prt <- IRanges(start=sub_input$start, end=sub_input$stop, names=rep(prot_id,nrow(sub_input)))
       gnm <- proteinToGenome(prt, edb)
@@ -256,11 +275,13 @@ seq_selection <- function(input_file,output_folder) {
     }
     
     # deal with longer than 150bp seqs
-    my_rois_final <- width_adjusting(my_rois)
+    if (nchar(comment)>0) max_length <- 100
+    else max_length <- 150
+    my_rois_final <- width_adjusting(my_rois, max_length=max_length)
     
     # get sequences for primer design -100...exon....+100 or -200...roi....+200
     # TO DO : hodit do funkcie
-    if (length(d)  == 1) prolong <- 100
+    if (input_type  == "A") prolong <- 100
     else prolong <- 200
     
     my_chrom <- rep(levels(my_rois_final@seqnames@values),length(my_rois_final))
@@ -270,25 +291,21 @@ seq_selection <- function(input_file,output_folder) {
     my_rois_seq <- getSeq(Hsapiens,my_chrom,start=my_start,end=my_end)
     my_rois_seq <- DNAStringSet(my_rois_seq)
     
-    saving_files(d, my_rois_final, output_folder,my_start,my_end, my_rois_seq)
+    saving_files(d, my_rois_final, output_folder,my_start,my_end, my_rois_seq, input_type, comment)
   }
   }
+  cat(input_type)
 }
 
-main <- function(input_file, output_folder){
-  
-  message("Starting step1 with args")
-  message(paste0("input_file:", input_file))
-  message(paste0("output_folder:", output_folder))
-  
-  message("Loading packages")
+main <- function(input_file, output_folder, comment){
   message("")
+  message("Starting step1 - Seq Selection")
   suppressMessages(library(EnsDb.Hsapiens.v86))
   suppressMessages(library(ensembldb))
   suppressMessages(library(seqinr))
   suppressMessages(library("BSgenome.Hsapiens.UCSC.hg38"))
-  seq_selection(input_file, output_folder)
-  message("Done")
+  if (nchar(comment)==0) seq_selection(input_file, output_folder, comment)
+  else suppressMessages(seq_selection(input_file, output_folder, comment))
   message("")
 }
 
@@ -301,12 +318,13 @@ if (length(args)>0) {
   }
 } else {
   # ONLY FOR TOOL DEVELOPMENT
-  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_all.txt"
+  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_resizing.txt"
   output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+  comment="ex_2 ex_4"
   #input_file="/home/rastik/primer3/src/inputH3F3A.txt"
   #output_folder="/home/rastik/primer3/src/outputs"
 }
 
-main(input_file, output_folder)
+cat(main(input_file, output_folder, comment))
 
 

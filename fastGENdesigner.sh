@@ -35,18 +35,20 @@ exec > >(tee "$temp_file") 2>&1
 
 echo "Starting fastGENdesigner with these arguments:"
 # arguments control
-if [ -z ${input_file+x} ]; then input_file=$(cat fastGENdesigner-input | grep -v '^#' | grep "input_file" | cut -d '=' -f 2); echo "Input file: ${input_file}"; fi
-if [ -z ${output_dir+x} ]; then output_dir=$(cat fastGENdesigner-input | grep -v '^#' | grep "output_dir" | cut -d '=' -f 2); echo "Output dir: ${output_dir}"; fi
-if [ -z ${size_range+x} ]; then size_range=$(cat fastGENdesigner-input | grep -v '^#' | grep "size_range" | cut -d '=' -f 2); echo "Size range: ${size_range}"; fi
-if [ -z ${pools_num+x} ]
-then 
-	pools_num=$(cat fastGENdesigner-input | grep -v '^#' | grep "pools" | cut -d '=' -f 2)
-	if [ "${#pools_num}" == "0" ]
-	then
-		echo "Number of pools: primer pooler suggestion"
-	else
-		echo "Number of pools: ${pools_num}"
-	fi
+if [ -z ${input_file+x} ]; then input_file=$(cat fastGENdesigner-input | grep -v '^#' | grep "input_file" | cut -d '=' -f 2); fi
+if [ -z ${output_dir+x} ]; then output_dir=$(cat fastGENdesigner-input | grep -v '^#' | grep "output_dir" | cut -d '=' -f 2); fi 
+if [ -z ${size_range+x} ]; then size_range=$(cat fastGENdesigner-input | grep -v '^#' | grep "size_range" | cut -d '=' -f 2); fi 
+
+echo "Input file: ${input_file}"
+echo "Output dir: ${output_dir}"
+echo "Size range: ${size_range}"
+
+if [ -z ${pools_num+x} ]; then pools_num=$(cat fastGENdesigner-input | grep -v '^#' | grep "pools" | cut -d '=' -f 2); fi
+if [ "${#pools_num}" == "0" ]
+then
+	echo "Number of pools: primer pooler suggestion"
+else
+	echo "Number of pools: ${pools_num}"
 fi
 
 

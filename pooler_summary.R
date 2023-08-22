@@ -44,7 +44,6 @@ combine_pools <- function(final) {
 }
 
 pools_picking <- function(final) {
-  #  DVOJKY NEMAME
   if (!(TRUE %in% (final > 1))) {
     sums <- apply(final,2, sum)
     ktore_skorovat <- names(sums)[sums == nrow(final)]
@@ -54,7 +53,6 @@ pools_picking <- function(final) {
     cat(ktore_skorovat)
     }
     
-    # DVOJKY MAME - ALE STALE SA DA NIECO VYBRAT
   } else if (FALSE %in% apply(final,2,my_fun)) { 
       combine_pools(final)
     } else {
@@ -117,6 +115,11 @@ pooler_summary <- function(output_folder){
   
   # adding dataframes into Excel file
   wb <- loadWorkbook(paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"))
+  
+  # adjusting primer properties - excluded primer pairs are marked as red
+  before <- read.xlsx(wb, "Primer properties",colNames=TRUE)$Name
+  after <- names(readDNAStringSet(paste(output_folder,"primers.fasta", sep ="/")))
+  addStyle(wb, "Primer properties",rows=which(!(before %in% after))+1, cols=1:9, style = createStyle(bgFill= "red"), gridExpand=TRUE, stack = FALSE)
   sheet_name <- add_unique_worksheet(wb, file = paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"),
                                      sheet_name = paste("PrimerDistributionCounts-",length(files),sep ="")) 
   writeData(wb, sheet = sheet_name, final)
@@ -127,6 +130,7 @@ pooler_summary <- function(output_folder){
   writeData(wb, sheet = sheet_name, final_names)
   setColWidths(wb,  sheet_name, cols = 1, widths = "auto")
   saveWorkbook(wb,paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
+  
   
   message("Primers distribution saved to Excel file: fastGENdesigner-output.xlsx")
   final <- final[,-1]

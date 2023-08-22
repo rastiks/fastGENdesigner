@@ -53,6 +53,7 @@ fi
 
 
 primer3=$(cat config | grep "primer3=" | cut -d '=' -f 2)
+blast_db=$(cat config | grep "blast_db=" | cut -d '=' -f 2)
 
 input_type=$(Rscript fastGENdesigner1-seq_selection.R "input_file='$input_file'" "output_folder='$output_dir'" "comment=''")
 comment=$(Rscript fastGENdesigner2-primer3.R "input_file='$input_file'" "output_folder='$output_dir'" "size_range='$size_range'" "input_type='$input_type'" "primer3_path='$primer3'")
@@ -64,6 +65,7 @@ then
 	comment=$(Rscript fastGENdesigner2-primer3.R "input_file='${output_dir}/input_resizing.txt'" "output_folder='$output_dir'" "size_range='$size_range'" "input_type='$input_type'" "primer3_path='$primer3'")
 fi
 
+Rscript fastGENdesigner3-blast.R "input_file='$input_file'" "output_folder='$output_dir'" "input_type='$input_type'" "blast_db='$blast_db'"
 cat "$temp_file" >> ${output_dir}/output.log
 rm "$temp_file"
 bash fastGENdesigner3-primerpooler.sh --input $input_file --output $output_dir --pools $pools_num

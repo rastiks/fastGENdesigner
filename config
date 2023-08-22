@@ -3,3 +3,4 @@
 
 primer3=/home/ppola/primer3/primer3-2.6.1/src/primer3_core
 primer_pooler=/home/ppola/pooler/pooler
+blast_db=/home/ppola/ncbi-blast-2.14.0+/blast/db/GCF_000001405.39_top_level

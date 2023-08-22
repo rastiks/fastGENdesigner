@@ -17,7 +17,7 @@ where <- c(where, length(scores))
 scores_sum <- c()
 for (i in 1:(length(where)-1)) {
   my_pfile <- scores[where[i]:where[i+1]]
-  pool_score <- sum(as.integer(regmatches(my_pfile[grep("Score = ", my_pfile)],regexpr("\\d",my_pfile[grep("Score = ", my_pfile)]))))
+  pool_score <- sum(as.integer(regmatches(my_pfile[grep("Score = ", my_pfile)],regexpr("\\d+",my_pfile[grep("Score = ", my_pfile)]))))
   scores_sum <- c(scores_sum, pool_score)
   }
 

@@ -1,7 +1,8 @@
 # fastGENdesigner input arguments
 # Add your input arguments for fastGENdesigner below
 
-input_file=/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/inputs/input_c.txt
+input_file=/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input.txt
 output_dir=/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs
 size_range=50-170
-#pools=7
+#pools=4
+

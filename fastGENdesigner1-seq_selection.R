@@ -25,7 +25,7 @@ input_check <- function(d) {
   
 }
 
-saving_files <- function(my_rois_final, output_folder, my_start, my_end, my_rois_seq, input_type, comment="") {
+saving_files <- function(my_rois_final, output_dir, my_start, my_end, my_rois_seq, input_type, comment="") {
   # check the input type - because of different file names
   if (input_type=="A") name_file <- "exons"
   else name_file <- "ROIs"
@@ -40,7 +40,7 @@ saving_files <- function(my_rois_final, output_folder, my_start, my_end, my_rois
                    scores=c(rep(".", length(my_rois_final))),
                    strands=strand(my_rois_final))
   
-  write.table(df, file=paste(output_folder,paste(name_file,".bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append=TRUE)
+  write.table(df, file=paste(output_dir,paste(name_file,".bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append=TRUE)
   
   # BED file - full
   df_complete_seq <- data.frame(seqnames=seqnames(my_rois_final),
@@ -51,12 +51,12 @@ saving_files <- function(my_rois_final, output_folder, my_start, my_end, my_rois
                                 strands=strand(my_rois_final))
   
   
-  write.table(df_complete_seq, file=paste(output_folder,paste(name_file,"_full_seqs.bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append=TRUE)
+  write.table(df_complete_seq, file=paste(output_dir,paste(name_file,"_full_seqs.bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append=TRUE)
   message("BED files created")
   
   # FASTA
   names(my_rois_seq) <- names(my_rois_final)
-  writeXStringSet(my_rois_seq,file = paste(output_folder,paste(name_file,"_full_sequences.fasta",sep=""),sep="/"),format="fasta", append=TRUE)
+  writeXStringSet(my_rois_seq,file = paste(output_dir,paste(name_file,"_full_sequences.fasta",sep=""),sep="/"),format="fasta", append=TRUE)
   message("FASTA files created")
   }
 
@@ -193,7 +193,7 @@ inverse_rle <- function(rle_object) {
   return (result)
 }
 
-finalseq_creating <- function(input_type, output_folder, my_rois, comment){
+finalseq_creating <- function(input_type, output_dir, my_rois, comment){
   # width adjusting
   if (nchar(comment)>0) { 
     # vraciame sa z kroku 2 
@@ -218,11 +218,11 @@ finalseq_creating <- function(input_type, output_folder, my_rois, comment){
   my_rois_seq <- DNAStringSet(my_rois_seq)
   
   # saving created variables
-  saving_files(my_rois_final, output_folder,my_start,my_end, my_rois_seq, input_type, comment)
+  saving_files(my_rois_final, output_dir,my_start,my_end, my_rois_seq, input_type, comment)
   
 }
 
-seq_selection <- function(input_file,output_folder, comment) {
+seq_selection <- function(input_file,output_dir, comment) {
   # ----------------------------------------------------------------------------
   # MAIN function for MODULE1:
   # - input control
@@ -234,7 +234,7 @@ seq_selection <- function(input_file,output_folder, comment) {
   
   # INPUTS:
   # input_file: path to input file
-  # output_folder: path to output directory
+  # output_dir: path to output directory
   # comment: information about sequences that we are interested in, 
   # example: H3-3A_ex_3
   
@@ -269,7 +269,7 @@ seq_selection <- function(input_file,output_folder, comment) {
     )
     
     # final step - elongation, saving
-    finalseq_creating(input_type, output_folder, my_rois, comment)
+    finalseq_creating(input_type, output_dir, my_rois, comment)
   }
   
   else {
@@ -395,44 +395,40 @@ seq_selection <- function(input_file,output_folder, comment) {
       }
       
       # COMMON STEP for input A and B
-      finalseq_creating(input_type, output_folder, my_rois, comment)
+      finalseq_creating(input_type, output_dir, my_rois, comment)
       
     } # end of for loop
   }
   
   # returning input_type for other Modules
-  cat(input_type)
+  return(input_type)
 }
 
-main <- function(input_file, output_folder, comment){
+main <- function(input_file, output_dir, comment){
   message("")
   message("Starting Step1 - Seq Selection")
-  message("Loading packages")
-  suppressMessages(library(EnsDb.Hsapiens.v86))
-  suppressMessages(library(ensembldb))
-  suppressMessages(library(seqinr))
-  suppressMessages(library("BSgenome.Hsapiens.UCSC.hg38"))
-  if (nchar(comment)==0) seq_selection(input_file, output_folder, comment)
-  else suppressMessages(seq_selection(input_file, output_folder, comment))
-  
+  if (nchar(comment)==0) input_type <- seq_selection(input_file, output_dir, comment)
+  else input_type <- suppressMessages(seq_selection(input_file, output_dir, comment))
   message("")
+  return(input_type)
 }
 
 # ARGS
-args = commandArgs(trailingOnly=TRUE)
-if (length(args) > 0) {
-  for(i in 1:length(args)){
-    eval(parse(text=args[[i]]))
-  }
-} else {
-  # ONLY FOR TOOL DEVELOPMENT
-  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
-  output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
-  comment="H3-3A_ex_2 H3-3A_ex_4"
-  #input_file="/home/rastik/primer3/src/inputH3F3A.txt"
-  #output_folder="/home/rastik/primer3/src/outputs"
-}
+# args = commandArgs(trailingOnly=TRUE)
+# if (length(args) > 0) {
+#   for(i in 1:length(args)){
+#     eval(parse(text=args[[i]]))
+#   }
+# } else {
+#   # ONLY FOR TOOL DEVELOPMENT
+#   input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
+#   output_dir="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+#   comment="H3-3A_ex_2 H3-3A_ex_4"
+#   #input_file="/home/rastik/primer3/src/inputH3F3A.txt"
+#   #output_dir="/home/rastik/primer3/src/outputs"
+# }
 
-cat(main(input_file, output_folder, comment))
+input_type <- main(input_file, output_dir, comment)
+
 
 

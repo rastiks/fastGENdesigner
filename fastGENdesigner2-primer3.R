@@ -64,7 +64,7 @@
   # check result
   if (length(returned.primers)==0){
     # SAVING STATISTICS if no primer was found
-    #write.csv(out, file=paste(output_folder, "statistics_primer3.txt", sep="/"),append=TRUE)
+    #write.csv(out, file=paste(output_dir, "statistics_primer3.txt", sep="/"),append=TRUE)
     
     if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2717", sep = " "))  
     else message(paste(input_list$name, "\u2717", sep = " "))
@@ -73,7 +73,7 @@
   
   if ((returned.primers)==0){ 
     # SAVING STATISTICS if no primer was found
-    #write.table(out, file=paste(output_folder, "statistics_primer3.txt", sep="/"),append=TRUE)
+    #write.table(out, file=paste(output_dir, "statistics_primer3.txt", sep="/"),append=TRUE)
     
     if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2717", sep = " "))
     else message(paste(input_list$name, "\u2717", sep = " "))
@@ -129,7 +129,7 @@
   return(designed.primers)
 }
 
-resizing_step <- function(resizing,primers_table, input_type, output_folder){
+resizing_step <- function(resizing,primers_table, input_type, output_dir){
   # delete primers that was already created - example: _1 was OK but _2 was not, we have to delete _1
   resizing <- gsub("(_\\d)*$", "",resizing)
   for (i in 1:length(resizing)) {
@@ -143,30 +143,30 @@ resizing_step <- function(resizing,primers_table, input_type, output_folder){
     new_input <- data.frame("gene"=new_genes)
     exons <- regmatches(resizing, regexpr(".+ex(_\\d+)", resizing)) 
     }
-    write.csv(new_input, paste(output_folder,"input_resizing.txt", sep="/"), row.names=FALSE, quote = FALSE)
+    write.csv(new_input, paste(output_dir,"input_resizing.txt", sep="/"), row.names=FALSE, quote = FALSE)
     return(list(primers_table, exons))
     
   # TO DO : INPUT TYPE B AND C
     
 }
 
-merging_files <- function(output_folder){
-  files <- list.files(path = output_folder, pattern="(ROIs)|(exons)", full.names = T) 
+merging_files <- function(output_dir){
+  files <- list.files(path = output_dir, pattern="(ROIs)|(exons)", full.names = T) 
   
   # primers - if there is A and B option - choose the best - the one that has all parts designed, or the one with more primers designed
-  primers <- readDNAStringSet(paste(output_folder, "primers.fasta", sep="/"))
+  primers <- readDNAStringSet(paste(output_dir, "primers.fasta", sep="/"))
   options <- names(primers)[grep("_[AB]\\d_", names(primers))]
   removing <- c()
   for (seq in unique(gsub("_[AB]\\d_p\\d-[FR]","", options))) {
     if ((TRUE %in% grepl(paste(seq,"A1", sep="_"),options)) & (TRUE %in% grepl(paste(seq,"A2", sep="_"),options))) removing <- c(removing,names(primers[grep(paste(seq,"B\\d_p\\d", sep ="_"), names(primers))]))    
   }
   primers <- primers[!names(primers) %in% removing]
-  writeXStringSet(primers,paste(output_folder, "primers.fasta", sep="/"))
+  writeXStringSet(primers,paste(output_dir, "primers.fasta", sep="/"))
   
   removing <- unique(gsub("\\d_p\\d-[FR]","", removing))
-  primers <- read.csv(paste(output_folder, "primers.bed", sep="/"), sep="\t", header=FALSE)
+  primers <- read.csv(paste(output_dir, "primers.bed", sep="/"), sep="\t", header=FALSE)
   primers <- primers[!(gsub("\\d_p\\d+$","",primers$V4) %in% removing),]
-  write.table(primers,paste(output_folder, "primers.bed", sep="/"),quote=FALSE,row.names=FALSE, col.names = FALSE, sep="\t")
+  write.table(primers,paste(output_dir, "primers.bed", sep="/"),quote=FALSE,row.names=FALSE, col.names = FALSE, sep="\t")
   
   # orig bed
   orig <- read.csv(files[grep("^.bed$",basename(gsub("exons|ROIs","",files)))], sep = "\t", header=FALSE)
@@ -198,12 +198,12 @@ merging_files <- function(output_folder){
   unlink(files[grep("^_resizing_full_sequences.fasta$",basename(gsub("exons|ROIs","",files)))])
   
   # input
-  unlink(paste(output_folder, "input_resizing.txt", sep ="/"))
+  unlink(paste(output_dir, "input_resizing.txt", sep ="/"))
   }
 
 ############################## primer_design - using external program PRIMER3    ###############
 
-primer3caller <- function(input_file, output_folder, size_range, input_type, primer3_path){
+primer3caller <- function(input_file, output_dir, size_range, input_type, primer3_path){
   
   # exons have padding_number 100 (input A), other input types have padding_number
   # 200 and their name is ROIs
@@ -219,10 +219,10 @@ primer3caller <- function(input_file, output_folder, size_range, input_type, pri
   if (grepl("input_resizing.txt", input_file)) name_file <- paste(name_file, "resizing", sep="_")
   
   # full sequences - for primer design
-  seq_complete <- readDNAStringSet(paste(output_folder,"/",name_file,"_full_sequences.fasta", sep=""))
+  seq_complete <- readDNAStringSet(paste(output_dir,"/",name_file,"_full_sequences.fasta", sep=""))
   
   # bed file - without padding
-  bed_file <- read.table(paste(output_folder,"/",name_file,".bed", sep = ""))
+  bed_file <- read.table(paste(output_dir,"/",name_file,".bed", sep = ""))
   res <- GRanges(seqnames = bed_file$V1,ranges = IRanges(start = bed_file$V2,
                                                          end = bed_file$V3,
                                                          names = bed_file$V4))
@@ -315,21 +315,21 @@ primer3caller <- function(input_file, output_folder, size_range, input_type, pri
     # momentalne sa Modul1 spusti spatne len raz
     
     # changing output - removing designed primers for problematic sequences, returning problematic sequences in the for of comment
-    resized_return <- resizing_step(resizing, primers_table, input_type, output_folder)
+    resized_return <- resizing_step(resizing, primers_table, input_type, output_dir)
     primers_table <- resized_return[[1]]
     comment <- resized_return[[2]]
-    cat(comment)
+    #cat(comment)
   }
   
-  write.fasta(sequences = as.list(primers_table$list_of_primer_seq), names=primers_table$seq_name, file.out = paste(output_folder,'primers.fasta', sep="/"), open= "a")
+  write.fasta(sequences = as.list(primers_table$list_of_primer_seq), names=primers_table$seq_name, file.out = paste(output_dir,'primers.fasta', sep="/"), open= "a")
   message("FASTA file created")
-  write.table(df_primers_complete, file=paste(output_folder,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append = TRUE)
+  write.table(df_primers_complete, file=paste(output_dir,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append = TRUE)
   message("BED file created")
   
   # SAVING PRIMER PROPERTIES
   # if we are at resizing step - append data
   if (grepl("input_resizing.txt", input_file)) {
-    wb <- loadWorkbook(paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"))
+    wb <- loadWorkbook(paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"))
     my_data <- read.xlsx(wb,sheet = "Primer properties")
     writeData(wb, sheet = "Primer properties", primers_table, startRow=nrow(my_data)+2, colNames=FALSE)
   } else{
@@ -340,40 +340,38 @@ primer3caller <- function(input_file, output_folder, size_range, input_type, pri
   setColWidths(wb, "Primer properties", cols = 1:2, widths = "auto")
   }
   
-  saveWorkbook(wb,paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
+  saveWorkbook(wb,paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
   message("Primers' characteristics saved to Excel file: fastGENdesigner-output.xlsx")
   
   # merging files
   if (grepl("input_resizing.txt", input_file)) {
-    merging_files(output_folder)
+    merging_files(output_dir)
     
   }
+  return(comment)
 }
 
-main <- function(input_file, output_folder, size_range, input_type, primer3_path, resizing=FALSE){
+main <- function(input_file, output_dir, size_range, input_type, primer3_path, resizing=FALSE){
   message("Starting Step2 - primer3 -> Looking for suitable primers")
-  suppressMessages(library(seqinr))
-  suppressMessages(library(GenomicRanges))
-  suppressMessages(library(Biostrings))
-  suppressMessages(library(openxlsx)) 
-  suppressWarnings(primer3caller(input_file, output_folder, size_range, input_type, primer3_path))
-  message("")
+  comment <- suppressWarnings(primer3caller(input_file, output_dir, size_range, input_type, primer3_path))
+  
+  return(comment)
 }
 
-# ARGS
-args = commandArgs(trailingOnly=TRUE)
+# # ARGS
+# args = commandArgs(trailingOnly=TRUE)
+# 
+# if (length(args)>0) {
+#   for(i in 1:length(args)){
+#     eval(parse(text=args[[i]]))
+#   }
+# } else {
+#   # ONLY FOR TOOL DEVELOPMENT
+#   input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input_c.txt"
+#   output_dir="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+#   input_type="C"
+#   primer3_path="/home/ppola/primer3/primer3-2.6.1/src/primer3_core"
+#   size_range = "50-170"
+# }
 
-if (length(args)>0) {
-  for(i in 1:length(args)){
-    eval(parse(text=args[[i]]))
-  }
-} else {
-  # ONLY FOR TOOL DEVELOPMENT
-  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input.txt"
-  output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
-  input_type="A"
-  primer3_path="/home/ppola/primer3/primer3-2.6.1/src/primer3_core"
-  size_range = "50-170"
-}
-
-main(input_file, output_folder, size_range, input_type, primer3_path)
+comment <- main(input_file, output_dir, size_range, input_type, primer3_path)

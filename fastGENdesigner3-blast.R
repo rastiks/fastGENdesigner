@@ -6,8 +6,7 @@
 # untar("human_genome.01.tar.gz", exdir="human_genome")
 
 
-
-find_problem <- function(primer, sub_cl, chromosomes){
+find_problem <- function(primer, sub_cl, chromosomes,i){
   target <- sub_cl[sub_cl$QueryID == primer &  # name
                      grepl(paste("NC_0+", chromosomes[i,1], "[.]\\d+", sep=""), sub_cl$SubjectID) &  # chromosome  
                      (sub_cl$S.start >= chromosomes$V2[i]) & (sub_cl$S.end <= chromosomes$V3[i]) ,] # coordinates
@@ -21,24 +20,24 @@ find_problem <- function(primer, sub_cl, chromosomes){
 }
 
 # BLAST
-blasting <- function(input_file, output_folder, input_type,blast_db) {
+blasting <- function(input_file, output_dir, input_type,blast_db) {
   
   # blast initialization
   bl <-blast(db=blast_db)
-  seq_for_blast<-readDNAStringSet(paste(output_folder,"primers.fasta",sep="/"))
+  seq_for_blast<-readDNAStringSet(paste(output_dir,"primers.fasta",sep="/"))
   cl <- predict(bl, seq_for_blast, BLAST_args = '-task blastn-short')
   
   # adding the output to the excel file
-  wb <- loadWorkbook(paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"))
+  wb <- loadWorkbook(paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"))
   addWorksheet(wb, sheetName ="BLAST"); writeData(wb, sheet = "BLAST", cl)
-  saveWorkbook(wb,paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
+  saveWorkbook(wb,paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
   
   # input A, B  - rozdelit tabulku po genoch - zistit na akom je gen chromozome
   discarding <- c()
 
   #genes <- unique(sapply(strsplit(names(seq_for_blast), split= "_"), "[[",1))
   #for (my_gene in genes) { # ma zmysel toto robit
-  chromosomes <- read.table(list.files(output_folder, pattern = "full_seqs.bed", full.names=T))
+  chromosomes <- read.table(list.files(output_dir, pattern = "full_seqs.bed", full.names=T))
   chromosomes <- chromosomes[, -c(5,6)] 
   chromosomes$V1 <- gsub("chr", "", chromosomes$V1)
   # TO DO - uplne zakazat () v inpute?
@@ -50,13 +49,13 @@ blasting <- function(input_file, output_folder, input_type,blast_db) {
     sub_cl <- cl[grepl(chromosomes[i,4],cl$QueryID),]
     # for loop pre kazdy primer pair - p0 az p4 ...
     for (forward_primer in unique(grep("-F", sub_cl$QueryID, value=TRUE))) {
-      result_forward <- find_problem(forward_primer, sub_cl, chromosomes)
+      result_forward <- find_problem(forward_primer, sub_cl, chromosomes,i)
       target <- result_forward[[1]]
       final_query <- result_forward[[2]]
       
       # je viac zhod - problem - skontrolovat aj reverse - ak je na rovnako zlom chromozome vyradime ho
       if (nrow(final_query) > 0) {
-        result_reverse <- find_problem(gsub("-F","-R",unique(final_query$QueryID)), sub_cl, chromosomes)
+        result_reverse <- find_problem(gsub("-F","-R",unique(final_query$QueryID)), sub_cl, chromosomes,i)
         target_reverse <- result_reverse[[1]]
         final_query_reverse <- result_reverse[[2]]
         for (i_problem in 1:nrow(final_query)) {
@@ -71,7 +70,7 @@ blasting <- function(input_file, output_folder, input_type,blast_db) {
   }
   
   blasted <- seq_for_blast[!(names(seq_for_blast) %in% discarding)]
-  writeXStringSet(blasted,paste(output_folder,"primers.fasta",sep="/"))
+  writeXStringSet(blasted,paste(output_dir,"primers.fasta",sep="/"))
   
   message("These primer pairs were excluded:")
   for (pair in unique(gsub("-[FR]", "", discarding))) message(pair)
@@ -83,32 +82,28 @@ blasting <- function(input_file, output_folder, input_type,blast_db) {
   if (length(which(!(before %in% after))) > 0) message(paste("!!! WARNING: THERE ARE NO PRIMER PAIRS LEFT FOR",before[!(before %in% after)], "!!!\n" ))
 }
 # adjusting excel
-#wb <- loadWorkbook(paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"))
+#wb <- loadWorkbook(paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"))
 #my_data <- read.xlsx(wb,sheet = "Primer properties",colNames=FALSE)
 #addStyle(wb, "Primer properties",rows=which(my_data$X1 %in% discarding), cols=1:5, style = createStyle(bgFill= "red"), gridExpand=TRUE, stack = FALSE)
-#saveWorkbook(wb,paste(output_folder,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
+#saveWorkbook(wb,paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
 
-main <- function(input_file, output_folder, input_type, blast_db) {
+main <- function(input_file, output_dir, input_type, blast_db) {
 message ("Starting Step3 - BLAST \nSearching for offtargets")
-suppressMessages(library('rBLAST'))
-suppressMessages(library(openxlsx))
-blasting(input_file, output_folder, input_type, blast_db)
+blasting(input_file, output_dir, input_type, blast_db)
 }
 
-# ARGS
-args = commandArgs(trailingOnly=TRUE)
+# # ARGS
+# args = commandArgs(trailingOnly=TRUE)
+# 
+# if (length(args)>0) {
+#   for(i in 1:length(args)){
+#     eval(parse(text=args[[i]]))
+#   }
+# } else {
+#   input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs//inputs/input.txt"
+#   output_dir="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
+#   input_type = "A"
+#   blast_db = "/home/ppola/ncbi-blast-2.14.0+/blast/db/GCF_000001405.39_top_level"
+# }
 
-if (length(args)>0) {
-  for(i in 1:length(args)){
-    eval(parse(text=args[[i]]))
-  }
-} else {
-  input_file="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs//inputs/input.txt"
-  output_folder="/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs"
-  input_type = "A"
-  blast_db = "/home/ppola/ncbi-blast-2.14.0+/blast/db/GCF_000001405.39_top_level"
-}
-
-main(input_file, output_folder, input_type, blast_db)
-
-
+main(input_file, output_dir, input_type, blast_db)

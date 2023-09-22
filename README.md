@@ -6,33 +6,51 @@ Requirements:
 - Primer3: https://github.com/primer3-org/primer3
 - Primer pooler: http://ssb22.user.srcf.net/pooler/pooler.tgz
 - hg38.2bit: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.2bit
+- !! PLEASE UPDATE THE PATHS IN CONFIG FILE !!
 
 Updates:
 - fastGENdesigner now includes:
 	* Modul1 - Seq Selection
 	* Modul2 - Primer3
-	* Modul3 - BLAST (coming soon)
-	* Modul4 - primerpooler.sh, pooler_summary.R, pooler_scoring.R
+	* Modul3 - BLAST 
+	* Modul4 - Primer Pooler
 	
 Usage:
-- Bash script available to run fastGENdesigner
-1. You can modify fastGENdesigner-input and run:
+- R script available to run fastGENdesigner:
+1. You can modify fastGENdesigner-input and run it in terminal:
 ```
-bash fastGENdesigner.sh
+Rscript fastGENdesigner.R
 ```
-2. Or you can call fastGENdesigner like this:
-```
-bash fastGENdesigner.sh --input <input_file> --output <output_dir> --size_range 50-170 --pools 5
-```
+2. Or you can source fastGENdesigner.R in RStudio
 
 ### Possible inputs:  
 1. GENE name - see example <em>input.txt</em>  
 fastGENdesigner will design primers for **all exons** of the given gene.  
 
+|gene|
+|:----|
+|H3-3A|
+
 2. ROIs coordinates and gene name - see example <em>input_all.txt</em>  
 fastGENdesigner will design primers for **ROIs**. 
 
+|start|stop|gene|
+|:----|:----|:----|
+|38|94|PIK3CA|
+|104|111|PIK3CA|
+|118|118|PIK3CA|
+|344|350|PIK3CA|
+|391|391|PIK3CA|
+|418|420|PIK3CA|
+
 3. Chromosomal coordinates - see example <em>input_c.txt</em>.
+
+|chrom|start|stop|name|
+|:----|:----|:----|:----|
+|chr1|119510718|119510754|BAT40(T)37|
+|chr2|39309549|39309575|MONO-27(T)27|
+|chr2|47414421|47414447|BAT26(A)27|
+|chr2|95183614|95183636|NR24(T)23|
 
 
 ### Possible outputs:
@@ -49,13 +67,14 @@ ROIs_full_sequences.fasta: prolonged ROIs sequences
 
 - Modul2:  
 primers.bed: bed file for designed primers  
-primers.fasta: primers sequences
-primer properties (Excel file)
+primers.fasta: primers sequences    
 
-- Modul4:
-poolfiles - primer pooler output
-primer pooler summary (Excel file)
+- Modul4:   
+poolfiles: primer pooler output    
+suggestion of the most suitable poolfile(s)
 
+- fastGENdesigner-output.xlsx: Excel file with Primer properties    
+and primer pairs distributions created by primer pooler
 
 
 

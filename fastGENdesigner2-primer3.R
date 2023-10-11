@@ -66,8 +66,8 @@
     # SAVING STATISTICS if no primer was found
     #write.csv(out, file=paste(output_dir, "statistics_primer3.txt", sep="/"),append=TRUE)
     
-    if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2717", sep = " "))  
-    else message(paste(input_list$name, "\u2717", sep = " "))
+    if (nchar(input_list$comment)>0) cat(paste(input_list$comment,"...","\u2717", "\n", sep = " "))  
+    else cat(paste(input_list$name, "\u2717\n", sep = " "))
     return(NA)
   }
   
@@ -75,15 +75,15 @@
     # SAVING STATISTICS if no primer was found
     #write.table(out, file=paste(output_dir, "statistics_primer3.txt", sep="/"),append=TRUE)
     
-    if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2717", sep = " "))
-    else message(paste(input_list$name, "\u2717", sep = " "))
+    if (nchar(input_list$comment)>0) cat(paste(input_list$comment,"...","\u2717\n", sep = " "))
+    else cat(paste(input_list$name, "\u2717\n", sep = " "))
     return(NA)
   }
   
   # PRIMERS SUCCESFULLY DESIGNED
   if (returned.primers>0){
-    if (nchar(input_list$comment)>0) message(paste(input_list$comment,"...","\u2713", sep = " "))  
-    else message(paste(input_list$name, "\u2713", sep = " "))
+    if (nchar(input_list$comment)>0) cat(paste(input_list$comment,"...","\u2713\n", sep = " "))  
+    else cat(paste(input_list$name, "\u2713\n", sep = " "))
     
     designed.primers=data.frame()
     for (i in seq(0,returned.primers-1,1)){
@@ -268,11 +268,11 @@ primer3caller <- function(input_file, output_dir, size_range, input_type, primer
     
     # primer design unsuccessful
     if (!(is.integer(nrow(primers)))) {
-      message("Primer design unsuccessful.")
+      cat("Primer design unsuccessful.\n")
       resizing <- c(resizing,my_list$name)
     }
     
-    message("")
+    cat("\n")
     
     # primer design successful
     if (is.integer(nrow(primers))) {
@@ -322,9 +322,9 @@ primer3caller <- function(input_file, output_dir, size_range, input_type, primer
   }
   
   write.fasta(sequences = as.list(primers_table$list_of_primer_seq), names=primers_table$seq_name, file.out = paste(output_dir,'primers.fasta', sep="/"), open= "a")
-  message("FASTA file created")
+  cat("FASTA file created\n")
   write.table(df_primers_complete, file=paste(output_dir,"primers.bed", sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append = TRUE)
-  message("BED file created")
+  cat("BED file created\n")
   
   # SAVING PRIMER PROPERTIES
   # if we are at resizing step - append data
@@ -341,7 +341,7 @@ primer3caller <- function(input_file, output_dir, size_range, input_type, primer
   }
   
   saveWorkbook(wb,paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
-  message("Primers' characteristics saved to Excel file: fastGENdesigner-output.xlsx")
+  cat("Primers' characteristics saved to Excel file: fastGENdesigner-output.xlsx\n")
   
   # merging files
   if (grepl("input_resizing.txt", input_file)) {
@@ -352,7 +352,7 @@ primer3caller <- function(input_file, output_dir, size_range, input_type, primer
 }
 
 main <- function(input_file, output_dir, size_range, input_type, primer3_path, resizing=FALSE){
-  message("Starting Step2 - primer3 -> Looking for suitable primers")
+  cat("Starting Step2 - primer3 -> Looking for suitable primers\n")
   comment <- suppressWarnings(primer3caller(input_file, output_dir, size_range, input_type, primer3_path))
   
   return(comment)

@@ -72,14 +72,14 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
   blasted <- seq_for_blast[!(names(seq_for_blast) %in% discarding)]
   writeXStringSet(blasted,paste(output_dir,"primers.fasta",sep="/"))
   
-  message("These primer pairs were excluded:")
-  for (pair in unique(gsub("-[FR]", "", discarding))) message(pair)
+  cat("These primer pairs were excluded:\n")
+  for (pair in unique(gsub("-[FR]", "", discarding))) cat(paste(pair, "\n"))
   
   # warning if all pairs were excluded
   before <- unique(gsub("_p\\d-[FR]", "", names(seq_for_blast)))
   after <- unique(gsub("_p\\d-[FR]","",names(blasted)))
   
-  if (length(which(!(before %in% after))) > 0) message(paste("!!! WARNING: THERE ARE NO PRIMER PAIRS LEFT FOR",before[!(before %in% after)], "!!!\n" ))
+  if (length(which(!(before %in% after))) > 0) cat(paste("!!! WARNING: THERE ARE NO PRIMER PAIRS LEFT FOR",before[!(before %in% after)], "!!!\n" ))
 }
 # adjusting excel
 #wb <- loadWorkbook(paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"))
@@ -88,7 +88,7 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
 #saveWorkbook(wb,paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
 
 main <- function(input_file, output_dir, input_type, blast_db) {
-message ("Starting Step3 - BLAST \nSearching for offtargets")
+cat ("Starting Step3 - BLAST \nSearching for offtargets\n")
 blasting(input_file, output_dir, input_type, blast_db)
 }
 

@@ -22,17 +22,17 @@ fg_designer_log <-  capture.output({
   #zz <- file(paste(output_dir,"output.log", sep="/"), open = "wt")
   #sink(file = zz, type="output", split=TRUE)
   #sink(file = zz, type="message", split=TRUE)
-  message("Starting fastGENdesigner with these arguments:")
-  message(paste("Input file:", input_file))
-  message(paste("Output dir:", output_dir))
-  message(paste("Size range:", size_range))
+  cat("Starting fastGENdesigner with these arguments:\n")
+  cat(paste("Input file:", input_file,"\n"))
+  cat(paste("Output dir:", output_dir),"\n")
+  cat(paste("Size range:", size_range),"\n")
   
-  if (is.na(pools)) {message("Number of pools: number of final primer pairs")} else {
-    message(paste("Number of pools:", pools))}
+  if (is.na(pools)) {cat("Number of pools: number of final primer pairs\n")} else {
+    cat(paste("Number of pools:", pools,"\n"))}
   
   config <- read.csv("config", sep="=", comment.char = "#", header = FALSE,row.names =1)
   
-  message("Loading packages - this can take a while :)")
+  cat("Loading packages - this can take a while ..\n")
   suppressMessages(library(seqinr))
   suppressMessages(library(Biostrings))
   suppressMessages(library(openxlsx)) 
@@ -52,7 +52,7 @@ fg_designer_log <-  capture.output({
   
   if (nchar(comment)>0) {
     input_file <- gsub(basename(input_file), "input_resizing.txt",input_file)
-    message("Resizing sequences with unsuccessful primer design")
+    cat("Resizing sequences with unsuccessful primer design\n")
     source("fastGENdesigner1-seq_selection.R")
     source("fastGENdesigner2-primer3.R")
   }
@@ -88,7 +88,7 @@ fg_designer_log <-  capture.output({
   output_fastgen <- as.data.frame(t(output_fastgen))
   excel_update(output_dir,list_dataframes[[1]],list_dataframes[[2]], success,combinations, best_combination_list,output_fastgen,d)
 
-})
+}, split=TRUE)
 
 writeLines(fg_designer_log, paste(output_dir,"fastGENdesigner-output.log", sep = "/"))
 

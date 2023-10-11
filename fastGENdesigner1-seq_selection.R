@@ -52,12 +52,12 @@ saving_files <- function(my_rois_final, output_dir, my_start, my_end, my_rois_se
   
   
   write.table(df_complete_seq, file=paste(output_dir,paste(name_file,"_full_seqs.bed",sep=""),sep="/"), quote=F, sep="\t", row.names=F, col.names=F, append=TRUE)
-  message("BED files created")
+  cat("BED files created\n")
   
   # FASTA
   names(my_rois_seq) <- names(my_rois_final)
   writeXStringSet(my_rois_seq,file = paste(output_dir,paste(name_file,"_full_sequences.fasta",sep=""),sep="/"),format="fasta", append=TRUE)
-  message("FASTA files created")
+  cat("FASTA files created\n")
   }
 
 width_adjusting <- function(my_rois, max_length=150, comment="") {
@@ -69,9 +69,9 @@ width_adjusting <- function(my_rois, max_length=150, comment="") {
   if (length(problems) >0){
     my_rois <- my_rois[-longer_than]
     # message for user
-    message(paste("These sequences are longer than ", max_length, "bp:", sep=""))
-    message(paste(names(problems), collapse = "\n"))
-    message("Starting width adjustment")
+    cat(paste("These sequences are longer than ", max_length, "bp:\n", sep=""))
+    cat(paste(names(problems), collapse = "\n"))
+    cat("Starting width adjustment\n")
     # initialization
     my_starts <- c()
     my_names <- c()
@@ -259,7 +259,7 @@ seq_selection <- function(input_file,output_dir, comment) {
   
   # INPUT C - chromosomal locations 
   if (input_type == "C") {
-    message("Chromosomal locations were given")
+    cat("Chromosomal locations were given\n")
 
     # Creating GRanges object
     my_rois <- GRanges(
@@ -276,17 +276,17 @@ seq_selection <- function(input_file,output_dir, comment) {
     # input A or B
       
     # MANE select
-    message("These genes were given:")
-    for (my_gene in unique(d$gene)) message(my_gene)
-    message("")
+    cat("These genes were given:\n")
+    for (my_gene in unique(d$gene)) cat(paste(my_gene,"\n"))
+    cat("\n")
     mane_gff <- readGFF("fastGENdesigner_files/MANE.GRCh38.v1.2.ensembl_genomic.gff.gz")
     
     # for loop in case of there are more genes than one given
     for (my_gene in unique(d$gene)) { 
-      message(paste("Working on ", my_gene))
-      message("Searching for MANE SELECT")# check if gene name is correct
+      cat(paste("Working on ", my_gene,"\n"))
+      cat("Searching for MANE SELECT\n")# check if gene name is correct
       
-      if (my_gene %in% mane_gff$gene_name) message("MANE SELECT found")
+      if (my_gene %in% mane_gff$gene_name) cat("MANE SELECT found\n")
       else {
         stop("Cannot find MANE SELECT, please try different gene name")
       }
@@ -305,14 +305,14 @@ seq_selection <- function(input_file,output_dir, comment) {
         # URL generator
         prot_id <- unlist(strsplit(prot_id, split="[.]"))[1]
         trans_id <- unlist(strsplit(trans_id, split="[.]"))[1]
-        message(paste("Trancript ID:",trans_id, sep=" "))
-        message(paste("Protein ID:",prot_id, sep=" "))
-        message("Please check the MANE SELECT here:")
-        message(paste("https://www.ensembl.org/Homo_sapiens/Location/View?db=core;g=",gene_id, sep=""))
-        message(paste("https://www.lrg-sequence.org/search/?query=",my_gene,sep=""))
-        message(paste("https://www.genenames.org/data/gene-symbol-report/#!/symbol/",my_gene,sep=""))
-        message(paste("https://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=",my_gene,sep=""))
-        message("")
+        cat(paste("Trancript ID:",trans_id,"\n", sep=" "))
+        cat(paste("Protein ID:",prot_id, "\n",sep=" "))
+        cat("Please check the MANE SELECT here:")
+        cat(paste("https://www.ensembl.org/Homo_sapiens/Location/View?db=core;g=",gene_id,  "\n",sep=""))
+        cat(paste("https://www.lrg-sequence.org/search/?query=",my_gene, "\n",sep=""))
+        cat(paste("https://www.genenames.org/data/gene-symbol-report/#!/symbol/",my_gene, "\n",sep=""))
+        cat(paste("https://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=",my_gene, "\n",sep=""))
+        cat("\n")
       }
       else{
         # TO DO??
@@ -323,12 +323,12 @@ seq_selection <- function(input_file,output_dir, comment) {
       if (input_type == "A") {
         
         # get all exons 
-        message(paste("Checking exons for", my_gene,sep = " "))
+        cat(paste("Checking exons for", my_gene, "\n",sep = " "))
         my_rois <- exons(edb, filter= ~ protein_id == prot_id)
         
         # delete UTR
-        message("Removing UTRs")
-        message("")
+        cat("Removing UTRs\n")
+        cat("\n")
         five_utr <- (fiveUTRsByTranscript(edb, filter= ~ protein_id == prot_id))@unlistData
         three_utr <- (threeUTRsByTranscript(edb, filter= ~ protein_id == prot_id))@unlistData
         
@@ -405,11 +405,11 @@ seq_selection <- function(input_file,output_dir, comment) {
 }
 
 main <- function(input_file, output_dir, comment){
-  message("")
-  message("Starting Step1 - Seq Selection")
+  cat("\n")
+  cat("Starting Step1 - Seq Selection\n")
   if (nchar(comment)==0) input_type <- seq_selection(input_file, output_dir, comment)
   else input_type <- suppressMessages(seq_selection(input_file, output_dir, comment))
-  message("")
+  cat("\n")
   return(input_type)
 }
 

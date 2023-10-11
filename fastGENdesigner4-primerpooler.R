@@ -1,5 +1,5 @@
 # STEP4 -PRIMER POOLER
-message("Starting primer pooler")
+cat("Starting primer pooler\n")
 
 add_unique_worksheet <- function(wb, file, sheet_name) {
   existing_names <- getSheetNames(file)
@@ -53,7 +53,7 @@ excel_update <- function(output_dir,final=NULL,final_names=NULL, best_pools = NU
              style = createStyle(bgFill= "green"), gridExpand=TRUE, stack = FALSE)
     
   } else{
-    message("Primers distribution saved to Excel file: fastGENdesigner-output.xlsx")
+    cat("Primers distribution saved to Excel file: fastGENdesigner-output.xlsx\n")
   }
   sheet_name <- add_unique_worksheet(wb,file = paste(output_dir,"fastGENdesigner-output.xlsx",sep="/"), sheet_name = "Settings")
   writeData(wb,sheet=sheet_name,output_setting,rowNames=TRUE,colNames = FALSE)
@@ -74,7 +74,7 @@ pooler_combinations <- function(final, final_names, best_pools_names){
   final_names <- final_names[unique(unlist(best_pools_names))]
   rownames(final_names) <- rownames(final)
   control <- apply(final,1,sum)
-  for (pool_name in unlist(best_pools_names)){
+  for (pool_name in unique(unlist(best_pools_names))){
     my_list <- list()
     for (name in names(control)) {
       pridat <- unlist(strsplit(final_names[name,pool_name], split=" "))
@@ -208,14 +208,14 @@ pooler_check <- function(final,final_names, number_of_parts,attempt){
       return(FALSE)
     }
     else if (length(good_pools)>1) {
-      message("Multiple suitable pools found. Starting scorring.")
+      cat("Multiple suitable pools found. Starting scorring.\n")
       scores <- pooler_scoring(output_dir,good_pools)
-      message("Calculated scores:")
-      for(i in 1:length(good_pools)) message(paste(good_pools[i],": ",scores[i], sep="")) 
+      cat("Calculated scores:\n")
+      for(i in 1:length(good_pools)) cat(paste(good_pools[i],": ",scores[i], "\n", sep="")) 
       return(good_pools)
     }
     else {
-      message(paste("One suitable pool found: ",good_pools)); return(good_pools)
+      cat(paste("One suitable pool found: ",good_pools, "\n")); return(good_pools)
     }
   } else{
     all_comb <- combn(names(final),number_of_parts) 
@@ -226,8 +226,8 @@ pooler_check <- function(final,final_names, number_of_parts,attempt){
       # OVERLAP CHECK
       best_pools_names <- overlap_check(final,final_names,best_pools_names)
       if (isEmpty(best_pools_names)) return(FALSE)
-      message("You can combine these pools: ")
-      for(i in 1:length(best_pools_names)) message(best_pools_names[i]) 
+      cat("You can combine these pools: \n")
+      for(i in 1:length(best_pools_names)) cat(paste(best_pools_names[i], "\n",)) 
       return(best_pools_names)
     } else {
       if (attempt <= 5) return(FALSE) 
@@ -237,9 +237,9 @@ pooler_check <- function(final,final_names, number_of_parts,attempt){
       # OVERLAP CHECK
       best_pools_names <- overlap_check(final,final_names,best_pools_names)
       if (isEmpty(best_pools_names)) return(FALSE)
-      message("You can combine these pools: ")
-      for(i in 1:length(best_pools_names)) message(best_pools_names[i]) 
-      return(best_pools_names)
+      cat("You can combine these pools: \n")
+      for(i in 1:length(best_pools_names)) cat(paste(best_pools_names[i],"\n")) 
+      return(best_pools_names[1])
       #return(FALSE)
     }
   }
@@ -299,7 +299,7 @@ pooler_scoring <- function(output_dir,names){
 }
 
 combinations_scoring <- function(output_dir, combinations){
-  message("Scoring multiple combinations")
+  cat("Scoring multiple combinations\n")
   primers <- readDNAStringSet(paste(output_dir,"primers.fasta", sep="/"))
   system(paste('echo "Primer pooler scoring" > ', output_dir, "/pooler_output/poolfiles_score.txt",sep=""))
   
@@ -361,8 +361,8 @@ combinations_choosing <- function(combinations,best_pools_names) {
   # first dG , second Score
   
   best_combination <- final_scores[final_scores[,"dG"] == max(final_scores[,"dG"]),]
-  best_combination <- rownames(best_combination[best_combination[,"Score"] == min(b[,"Score"]),])
-  message(paste("The best combination is: ",unlist(best_combination),". You can find it in the OUTPUT EXCEL TABLE.", sep = ""))
+  best_combination <- rownames(best_combination[best_combination[,"Score"] == min(best_combination[,"Score"]),])
+  cat(paste("The best combination is: ",unlist(best_combination),". You can find it in the OUTPUT EXCEL TABLE.",  "\n",sep = ""))
   return(list(final_scores,best_combination))
 }
 
@@ -379,7 +379,7 @@ if (is.na(pools)) {
   pools <- max(as.integer(regmatches(primers,regexpr("\\d+",primers)))) + number_of_parts # +1 because of indexing and -1 because if we have two parts, we want to add 1
 }
 
-message(paste("Number of pools:",pools))
+cat(paste("Number of pools:",pools, "\n"))
 
 # create directory for pooler output
 if (!(dir.exists((paste(output_dir, "pooler_output", sep = "/"))))) {
@@ -391,7 +391,7 @@ success <- FALSE
 attempts <- 1
 
 while ((paste(success,collapse = " ") == FALSE) & (attempts <= 5)) {
-  message(paste("Attempt No.", attempts))
+  cat(paste("Attempt No.", attempts, "\n"))
   try(system(
     paste(primer_pooler ," --pools=", pools,",1,",output_dir,"/pooler_output/poolfile ", "--genome=fastGENdesigner_files/hg38.2bit ",output_dir, 
           "/primers.fasta 2> ", output_dir, "/pooler_output/pooler_output.txt", sep="")
@@ -403,7 +403,7 @@ while ((paste(success,collapse = " ") == FALSE) & (attempts <= 5)) {
 }
 
 if (paste(success,collapse = " ") != FALSE) {
-  message("Poolfiles and pooler output created")
+  cat("Poolfiles and pooler output created\n")
   combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success) # <---- problem
   best_combination_list <- NULL
   if (is.data.frame(combinations)) {
@@ -416,13 +416,13 @@ if (paste(success,collapse = " ") != FALSE) {
 } else {
   s <- "s"
   if (number_of_parts == 1) s <- ""
-  message(paste("Cannot create ", number_of_parts, " pool",s,". Incrising number of pools.", sep = ""))
+  cat(paste("Cannot create ", number_of_parts, " pool",s,". Incrising number of pools.", "\n", sep = ""))
   attempts <- 6
   number_of_parts <- number_of_parts+1
   success <- pooler_check(list_dataframes[[1]],list_dataframes[[2]], number_of_parts,attempts)
   
   if (paste(success,collapse = " ") != FALSE) {
-    message("Poolfiles and pooler output created")
+    cat("Poolfiles and pooler output created\n")
     combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success)
     best_combination_list <- NULL
     if (is.data.frame(combinations)) {

@@ -15,7 +15,10 @@ find_problem <- function(primer, sub_cl, chromosomes,i){
   
   # filter max score -6
   final_query <- sub_cl[(sub_cl$QueryID == primer) & (sub_cl$Bits >= max_score -6),]
-  final_query <- final_query[!( rowSums(t(apply(final_query, 1, function(x) target == x))) == ncol(final_query)),]
+  control <- data.frame(matrix(target, nrow = nrow(final_query), ncol = ncol(target),byrow=TRUE))
+  control <- control == final_query
+  final_query <- final_query[!( rowSums(control) == ncol(final_query)),]
+  #final_query <- final_query[!( rowSums(t(apply(final_query, 1, function(x) target == x))) == ncol(final_query)),]
   return(list(target,final_query))
 }
 
@@ -45,6 +48,7 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
   cl$QueryID <- gsub("[(].[)]","", cl$QueryID)
   
   # FOR LOOP - pre kazdu sekvenciu
+  problems_df <- data.frame()
   for (i in 1:nrow(chromosomes)) {
     sub_cl <- cl[grepl(chromosomes[i,4],cl$QueryID),]
     # for loop pre kazdy primer pair - p0 az p4 ...
@@ -59,8 +63,13 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
         target_reverse <- result_reverse[[1]]
         final_query_reverse <- result_reverse[[2]]
         for (i_problem in 1:nrow(final_query)) {
-          if (nrow(final_query_reverse[(final_query_reverse$SubjectID == final_query$SubjectID[i_problem]) & # same offtarget chromosome
-                                  ((abs(final_query_reverse$S.start - final_query$S.start[i_problem]))<10000) ,]) > 0)  { #  blizko seba 
+          if (nrow(final_query_reverse[(final_query_reverse$SubjectID == final_query$SubjectID[i_problem]) & 
+                                       !(grepl("NT_",final_query$SubjectID[i_problem])) & 
+                                       ((abs(final_query_reverse$S.start - final_query$S.start[i_problem]))<10000) ,]) > 0)  { #  blizko seba
+            reverse_problem <- final_query_reverse[(final_query_reverse$SubjectID == final_query$SubjectID[i_problem]) & # same offtarget chromosome
+                                                     ((abs(final_query_reverse$S.start - final_query$S.start[i_problem]))<10000) ,]
+            forward_problem <- final_query[i_problem,]
+            problems_df <- rbind(problems_df,rbind(forward_problem, reverse_problem))
             discarding <- c(discarding,forward_primer, gsub("-F","-R",forward_primer))
             break
           }
@@ -80,7 +89,9 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
   after <- unique(gsub("_p\\d-[FR]","",names(blasted)))
   
   if (length(which(!(before %in% after))) > 0) cat(paste("!!! WARNING: THERE ARE NO PRIMER PAIRS LEFT FOR",before[!(before %in% after)], "!!!\n" ))
-}
+  missing_primers <- before[!(before %in% after)]
+  return(problems_df)
+  }
 # adjusting excel
 #wb <- loadWorkbook(paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"))
 #my_data <- read.xlsx(wb,sheet = "Primer properties",colNames=FALSE)
@@ -88,8 +99,9 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
 #saveWorkbook(wb,paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
 
 main <- function(input_file, output_dir, input_type, blast_db) {
-cat ("Starting Step3 - BLAST \nSearching for offtargets\n")
-blasting(input_file, output_dir, input_type, blast_db)
+  cat ("Starting Step3 - BLAST \nSearching for offtargets\n")
+  problems_df <- blasting(input_file, output_dir, input_type, blast_db)
+  return(problems_df)
 }
 
 # # ARGS
@@ -106,4 +118,4 @@ blasting(input_file, output_dir, input_type, blast_db)
 #   blast_db = "/home/ppola/ncbi-blast-2.14.0+/blast/db/GCF_000001405.39_top_level"
 # }
 
-main(input_file, output_dir, input_type, blast_db)
+problems_df <- main(input_file, output_dir, input_type, blast_db)

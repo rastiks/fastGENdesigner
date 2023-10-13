@@ -13,7 +13,7 @@ add_unique_worksheet <- function(wb, file, sheet_name) {
   return(new_name)
 }
 
-excel_update <- function(output_dir,final=NULL,final_names=NULL, best_pools = NULL, combinations=NULL,best_combination_list,output_setting,input_file) {
+excel_update <- function(output_dir,final=NULL,final_names=NULL, best_pools = NULL, combinations=NULL,best_combination_list,output_setting,input_file, final_bed) {
   files <- list.files(path = paste(output_dir,"pooler_output", sep="/"), pattern="poolfile\\d", full.names = T) 
   # adding dataframes into Excel file
   wb <- loadWorkbook(paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"))
@@ -21,6 +21,7 @@ excel_update <- function(output_dir,final=NULL,final_names=NULL, best_pools = NU
   # adjusting primer properties - excluded primer pairs are marked as red
   before <- read.xlsx(wb, "Primer properties",colNames=TRUE)$Name
   after <- names(readDNAStringSet(paste(output_dir,"primers.fasta", sep ="/")))
+  writeData(wb,"Primer properties",data.frame(Selected=as.integer(gsub("-[RF]","",before) %in% final_bed)),startCol = 10)
   addStyle(wb, "Primer properties",rows=which(!(before %in% after))+1, cols=1:9, style = createStyle(bgFill= "red"), gridExpand=TRUE, stack = FALSE)
   if (!(is.null(final))) {
     sheet_name <- add_unique_worksheet(wb, file = paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"),
@@ -49,7 +50,7 @@ excel_update <- function(output_dir,final=NULL,final_names=NULL, best_pools = NU
                                        sheet_name = "Combinations") 
     writeData(wb, sheet = sheet_name, best_combination_list[[1]], rowNames = TRUE, colNames = TRUE)
     setColWidths(wb,  sheet_name, cols = 1:3, widths = "auto")
-    addStyle(wb, sheet_name,cols=1:3, rows=which(rownames(best_combination_list[[1]]) %in% unlist(best_combination_list[[2]])),
+    addStyle(wb, sheet_name,cols=1:3, rows=which(rownames(best_combination_list[[1]]) %in% unlist(best_combination_list[[2]]))+1,
              style = createStyle(bgFill= "green"), gridExpand=TRUE, stack = FALSE)
     
   } else{
@@ -65,7 +66,8 @@ excel_update <- function(output_dir,final=NULL,final_names=NULL, best_pools = NU
 }
 
 pooler_combinations <- function(final, final_names, best_pools_names){
-  LETTERS702 <- c(LETTERS, sapply(LETTERS, function(x) paste0(x, LETTERS)))
+  LETTERS702 <- sapply(LETTERS, function(x) paste0(x, LETTERS))
+  my_LETTERS <- c(LETTERS702,sapply(LETTERS702, function(x) paste0(x, LETTERS)))
   best_pools_names <- as.data.frame(best_pools_names)
   combinations <- data.frame()
   #final_names$primer_pairs <- gsub("_p$","", final_names$primer_pairs)
@@ -74,7 +76,24 @@ pooler_combinations <- function(final, final_names, best_pools_names){
   final_names <- final_names[unique(unlist(best_pools_names))]
   rownames(final_names) <- rownames(final)
   control <- apply(final,1,sum)
-  for (pool_name in unique(unlist(best_pools_names))){
+  numbers_of_combs <- c() 
+  for (j in 1:ncol(best_pools_names)){
+    for (pool_name in best_pools_names[,j]){
+      my_list <- list()
+      for (name in names(control)) {
+        pridat <- unlist(strsplit(final_names[name,pool_name], split=" "))
+        if (paste(pridat, collapse = "") != "-") pridat <- paste(name,pridat,sep="_")
+        if (control[name] > 1) pridat <- c(pridat,"-")
+        my_list[[name]] <-  pridat
+      }
+      comb <- expand.grid(my_list)
+      # vymazat nezmyselne kombinacie - musi obsahovat polovicu +- 3 pary
+      balance_ind <- apply(comb,1,function(x) sum(x == "-"))
+      #comb <- comb[(!((balance_ind <= round((nrow(final)/2)) -2) | (balance_ind >= round((nrow(final)/2)) +2))),]
+      numbers_of_combs <- c(numbers_of_combs,nrow(comb))
+    }}
+  best_pools_names <- best_pools_names[,which.min(rowSums(matrix(numbers_of_combs, ncol = 2, byrow = TRUE)))]
+  for (pool_name in best_pools_names){
     my_list <- list()
     for (name in names(control)) {
       pridat <- unlist(strsplit(final_names[name,pool_name], split=" "))
@@ -83,14 +102,20 @@ pooler_combinations <- function(final, final_names, best_pools_names){
       my_list[[name]] <-  pridat
     }
     comb <- expand.grid(my_list)
+    # vymazat nezmyselne kombinacie - musi obsahovat polovicu +- 1
+    balance_ind <- apply(comb,1,function(x) sum(x == "-"))
+    comb <- comb[(!((balance_ind <= round((nrow(final)/2)) -2) | (balance_ind >= round((nrow(final)/2)) +2))),]
     if (nrow(comb)>1) {
       my_names <- c()
-      for (i in 1:nrow(comb)) my_names <- c(my_names,paste(pool_name,LETTERS702[i]))
+      for (i in 1:nrow(comb)) my_names <- c(my_names,paste(pool_name,my_LETTERS[i]))
     } 
     else my_names <- name
     rownames(comb) <- my_names
     combinations <- rbind(combinations,comb)
   }
+  return(combinations)
+}
+
   #if (!((ncol(best_pools_names)>1) | (TRUE %in% (final[unique(unlist(best_pools_names))] > 1)))) return(NULL)
   # for (pool in unique(unlist(best_pools_names))) {
   #     my_list <- list()
@@ -108,8 +133,8 @@ pooler_combinations <- function(final, final_names, best_pools_names){
   #     rownames(comb) <- my_names
   #     combinations <- rbind(combinations,comb)
   # }
-  return(combinations)
-}
+#  return(combinations)
+#}
 
 pooler_summary <- function(output_dir){
   files=list.files(path = paste(output_dir,"pooler_output", sep="/"), pattern="poolfile\\d", full.names = T) 
@@ -239,7 +264,7 @@ pooler_check <- function(final,final_names, number_of_parts,attempt){
       if (isEmpty(best_pools_names)) return(FALSE)
       cat("You can combine these pools: \n")
       for(i in 1:length(best_pools_names)) cat(paste(best_pools_names[i],"\n")) 
-      return(best_pools_names[1])
+      return(best_pools_names)
       #return(FALSE)
     }
   }
@@ -274,8 +299,11 @@ scores_summing <- function(output_dir) {
   return(list(scores_sum,scores_sum_dG))
 }
 
-pooler_scoring <- function(output_dir,names){
+pooler_scoring <- function(output_dir,names=NULL){
   system(paste('echo "Primer pooler scoring" > ', output_dir, "/pooler_output/poolfiles_score.txt",sep=""))
+  if (is.null(names)) {
+    names <- list.files(paste(output_dir,"pooler_output", sep="/"), pattern="poolfile\\d+.txt")
+  }
   temp_file <- tempfile()
   for (i in 1:length(names)) {
     # SCORE
@@ -288,18 +316,19 @@ pooler_scoring <- function(output_dir,names){
     # dG
     system(paste('echo "',names[i],'"', " >> " , output_dir, "/pooler_output/poolfiles_dG.txt",sep=""))
     try(system(
-      paste(primer_pooler, " ", output_dir, "/pooler_output/","poolfile1.txt", 
+      paste(primer_pooler, " ", output_dir, "/pooler_output/",names[i], 
             " --print-bonds=-2 --dg=333,2,1,1 ",">> ", output_dir, "/pooler_output/poolfiles_dG.txt 2> ",temp_file, sep="")
     ))
   }
   unlink(temp_file)
   scores_sum <- scores_summing(output_dir)
+  names(scores_sum) <- c("Score","dG")
   return(scores_sum) 
   
 }
 
 combinations_scoring <- function(output_dir, combinations){
-  cat("Scoring multiple combinations\n")
+  cat("Scoring multiple combinations - this can take a while .. \n")
   primers <- readDNAStringSet(paste(output_dir,"primers.fasta", sep="/"))
   system(paste('echo "Primer pooler scoring" > ', output_dir, "/pooler_output/poolfiles_score.txt",sep=""))
   
@@ -334,27 +363,39 @@ combinations_choosing <- function(combinations,best_pools_names) {
   final_score_dG <- c()
   my_names <- c()
   
-  for (i in 1:ncol(best_pools_names)) {
-    my_list <- list()
-    for (j in 1:nrow(best_pools_names)) {
-      my_pool <- best_pools_names[j,i]
-      my_list[[my_pool]] <- grep(my_pool,rownames(combinations), value=TRUE)
+  #for (i in 1:ncol(best_pools_names)) {
+  #my_list <- list()
+  #for (j in 1:length(best_pools_names)) {
+  #  my_pool <- best_pools_names[j]
+  #  my_list[[my_pool]] <- grep(my_pool,rownames(combinations), value=TRUE)
+  #}
+  #combs <- expand.grid(my_list)
+  first_pool_comb <- combinations[grepl(best_pools_names[1],rownames(combinations)),]
+  second_pool_comb <- combinations[!(grepl(best_pools_names[1],rownames(combinations))),]
+  n_col <- ncol(combinations)-2 
+  combs <- data.frame()
+  for (r in 1:nrow(first_pool_comb)){
+    a <- gsub("_p\\d+$","",second_pool_comb[,1]) != gsub("_p\\d+$","",first_pool_comb[r,1])
+    for (c in 2:n_col){
+      a <- (a == TRUE) & (gsub("_p\\d+$","",second_pool_comb[,c]) != gsub("_p\\d+$","",first_pool_comb[r,c]))
     }
-    combs <- expand.grid(my_list)
-    
-    # keep only those combinations that are valid 
-    delete_ind <- c()
-    for (c in 1:nrow(combs)){
-      control <- apply(combinations[unlist(combs[c,]),1:(ncol(combinations)-2)],2, function(x) sum(grepl("-",x)))
-      if (0 %in% control | 2 %in% control) delete_ind <- c(delete_ind,c)
-    }
-    combs <- combs[-delete_ind,]
-    
-    for (c in 1:nrow(combs)) {
-      final_score <- c(final_score,sum(combinations[unlist(combs[c,]),"Score"]))
-      final_score_dG <- c(final_score_dG,sum(combinations[unlist(combs[c,]),"dG"]))
-      my_names <- c(my_names,paste(unlist(combs[c,]), collapse = " + "))
-    }
+    if (nrow(second_pool_comb[a,]) == 0) next
+    combs <- rbind(combs,t(data.frame(c(rownames(first_pool_comb[r,]),rownames(second_pool_comb[a,])))))
+  }
+  rownames(combs) <- 1:nrow(combs)
+  
+  # keep only those combinations that are valid 
+  #delete_ind <- c()
+  
+  #for (c in 1:nrow(combs)){
+  #  control <- apply(combinations[unlist(combs[c,]),1:n_col],2, function(x) sum(grepl("-",x)))
+  #  if (0 %in% control | 2 %in% control) delete_ind <- c(delete_ind,c)
+  #}
+  #  combs <- combs[-delete_ind,]
+  for (c in 1:nrow(combs)) {
+    final_score <- c(final_score,sum(combinations[unlist(combs[c,]),"Score"]))
+    final_score_dG <- c(final_score_dG,sum(combinations[unlist(combs[c,]),"dG"]))
+    my_names <- c(my_names,paste(unlist(combs[c,]), collapse = " + "))
   }
   final_scores <- data.frame(Score = final_score, dG = final_score_dG,row.names = my_names)
   # finding MINIMUM
@@ -402,9 +443,11 @@ while ((paste(success,collapse = " ") == FALSE) & (attempts <= 5)) {
   attempts <- attempts +1
 }
 
+# USPECH PRE 1 POOL
 if (paste(success,collapse = " ") != FALSE) {
   cat("Poolfiles and pooler output created\n")
-  combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success) # <---- problem
+  if (length(unlist(success)) == 1) combinations <- NULL
+  else combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success) # <---- problem
   best_combination_list <- NULL
   if (is.data.frame(combinations)) {
     combinations <- combinations_scoring(output_dir,combinations)
@@ -412,8 +455,8 @@ if (paste(success,collapse = " ") != FALSE) {
   }
   
   #excel_update(output_dir,list_dataframes[[1]],list_dataframes[[2]], success,combinations, best_combination_list[[1]],output_setting)
-  
 } else {
+  # SKUSIT ZVYSIT POCET POOLOV
   s <- "s"
   if (number_of_parts == 1) s <- ""
   cat(paste("Cannot create ", number_of_parts, " pool",s,". Incrising number of pools.", "\n", sep = ""))
@@ -422,12 +465,37 @@ if (paste(success,collapse = " ") != FALSE) {
   success <- pooler_check(list_dataframes[[1]],list_dataframes[[2]], number_of_parts,attempts)
   
   if (paste(success,collapse = " ") != FALSE) {
-    cat("Poolfiles and pooler output created\n")
     combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success)
+    print(nrow(combinations))
+    if (nrow(combinations)>2000) success = FALSE
+  }
+  
+  while ((paste(success,collapse = " ") == FALSE) & (attempts <= 15)) {
+    cat(paste("Attempt No.", attempts, "\n"))
+    try(system(
+      paste(primer_pooler ," --pools=", pools,",1,",output_dir,"/pooler_output/poolfile ", "--genome=fastGENdesigner_files/hg38.2bit ",output_dir, 
+            "/primers.fasta 2> ", output_dir, "/pooler_output/pooler_output.txt", sep="")
+    ))
+    file.remove(grep("overlap-report.\\d+.txt",list.files(), value=TRUE))
+    list_dataframes <- suppressWarnings(pooler_summary(output_dir))
+    success <- pooler_check(list_dataframes[[1]],list_dataframes[[2]], number_of_parts,attempts)
+    combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success)
+    print(nrow(combinations))
+    if (nrow(combinations)>2500) success = FALSE
+    else success <- unique(regmatches(rownames(combinations), regexpr("poolfile\\d+.txt", rownames(combinations))))
+    attempts <- attempts +1
+  }
+    cat("Poolfiles and pooler output created\n")
     best_combination_list <- NULL
     if (is.data.frame(combinations)) {
       combinations <- combinations_scoring(output_dir,combinations)
       best_combination_list <- combinations_choosing(combinations,success)
     }
-  }
 }
+
+# SKOROVAT AJ ORIGINALNE POOLY
+scores <- pooler_scoring(output_dir)
+scores <- t(data.frame(scores))
+colnames(scores) <- colnames(list_dataframes[[1]])
+list_dataframes[[1]] <- rbind(list_dataframes[[1]], scores)
+list_dataframes[[2]] <- rbind(list_dataframes[[2]], scores)

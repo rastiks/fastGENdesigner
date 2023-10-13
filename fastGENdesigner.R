@@ -86,9 +86,40 @@ fg_designer_log <-  capture.output({
   }
   
   output_fastgen <- as.data.frame(t(output_fastgen))
-  excel_update(output_dir,list_dataframes[[1]],list_dataframes[[2]], success,combinations, best_combination_list,output_fastgen,d)
 
+  if (is.null(best_combination_list) & length(success)==1){
+    # create final fasta
+    final_file <- paste(output_dir,"pooler_output",success,sep="/")
+    file.copy(final_file,output_dir)
+    file.rename(paste(output_dir,success, sep="/"),paste(output_dir,"final_primers.fasta", sep = "/"))
+    primers_names <- names(readDNAStringSet(paste(output_dir,"final_primers.fasta",sep="/")))
+  } else{
+    # create fasta from combinations <----  TO DO 
+    my_fasta <- readDNAStringSet(paste(output_dir,"primers.fasta",sep="/"))
+    final_pick <- unlist(strsplit(best_combination_list[[2]],split=" [+] "))
+    primers_names <- c()
+    for (pick in final_pick){
+      pick <- combinations[pick,]
+      final_fasta <- my_fasta[gsub("-[FR]","",names(my_fasta)) %in% unlist(pick[,1:(ncol(pick)-2)])]
+      primers_names <- c(primers_names,names(final_fasta))
+      writeXStringSet(final_fasta,paste0(output_dir,"/","final_",rownames(pick),".fasta"))
+    }
+    combinations["Selected"] <- as.integer(rownames(combinations) %in% final_pick)
+  }
+  cat("FINAL FASTA FILE CREATED.\n")
+  # create bed
+  final_bed <- read.csv(paste(output_dir,"primers.bed",sep="/"),sep="\t",header=FALSE)
+  final_bed <- final_bed[final_bed[,4] %in% gsub("-[RF]","",primers_names),]
+  write.table(final_bed, file=paste(output_dir,"final_primers.bed",sep="/"), quote=F, sep="\t", row.names=F, col.names=F)
+  cat("FINAL BED FILE CREATED.\n")
+  
+  excel_update(output_dir,list_dataframes[[1]],list_dataframes[[2]], success,combinations, best_combination_list,output_fastgen,d,final_bed[,4])
+  
+  
 }, split=TRUE)
 
 writeLines(fg_designer_log, paste(output_dir,"fastGENdesigner-output.log", sep = "/"))
 
+
+
+#

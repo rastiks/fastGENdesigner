@@ -99,7 +99,7 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
 #saveWorkbook(wb,paste(output_dir,"fastGENdesigner-output.xlsx", sep ="/"), overwrite = TRUE)
 
 main <- function(input_file, output_dir, input_type, blast_db) {
-  cat ("Starting Step3 - BLAST \nSearching for offtargets\n")
+  cat ("\nStarting Step3 - BLAST \nSearching for offtargets\n")
   problems_df <- blasting(input_file, output_dir, input_type, blast_db)
   return(problems_df)
 }

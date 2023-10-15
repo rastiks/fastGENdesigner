@@ -17,7 +17,7 @@ fg_designer_log <-  capture.output({
   if (!(exists("input_file"))) input_file <- inputs["input_file",]
   if (!(exists("output_dir"))) output_dir <- inputs["output_dir",]
   if (!(exists("size_range"))) size_range <- inputs["size_range",]
-  if (!(exists("pools"))) pools <- inputs["pools",]
+  if (!(exists("pools"))) num_pools <- inputs["pools",]
   
   #zz <- file(paste(output_dir,"output.log", sep="/"), open = "wt")
   #sink(file = zz, type="output", split=TRUE)
@@ -27,8 +27,8 @@ fg_designer_log <-  capture.output({
   cat(paste("Output dir:", output_dir),"\n")
   cat(paste("Size range:", size_range),"\n")
   
-  if (is.na(pools)) {cat("Number of pools: number of final primer pairs\n")} else {
-    cat(paste("Number of pools:", pools,"\n"))}
+  if (!(is.na(num_pools))) {cat(paste("Number of pools:", num_pools,"\n"))} #else {
+  #cat(paste("Number of pools:", pools,"\n"))}
   
   config <- read.csv("config", sep="=", comment.char = "#", header = FALSE,row.names =1)
   
@@ -82,19 +82,23 @@ fg_designer_log <-  capture.output({
   if (is.null(combinations)){
     output_fastgen["Best pool(s)"] <- paste(success,collapse = " ")
   } else {
-    output_fastgen["Best combination"] <- best_combination_list[[2]]
+    output_fastgen["Best combination"] <- paste(best_combination_list[[2]], collapse=" & ")
   }
   
-  output_fastgen <- as.data.frame(t(output_fastgen))
+   output_fastgen <- as.data.frame(t(output_fastgen))
 
-  if (is.null(best_combination_list) & length(success)==1){
+   if (is.null(best_combination_list)){ # 
     # create final fasta
+    success <- unlist(success)
     final_file <- paste(output_dir,"pooler_output",success,sep="/")
     file.copy(final_file,output_dir)
-    file.rename(paste(output_dir,success, sep="/"),paste(output_dir,"final_primers.fasta", sep = "/"))
-    primers_names <- names(readDNAStringSet(paste(output_dir,"final_primers.fasta",sep="/")))
+    if (length(success)>1) renaming <- paste(output_dir,"/final_primers",regmatches(success,regexpr("\\d",success)),".fasta", sep = "")
+    else renaming <- paste(output_dir,"final_primers.fasta", sep = "/")
+    file.rename(paste(output_dir,success, sep="/"),renaming)
+    final_primers_fasta <- list.files(output_dir,pattern = "final_primers")
+    primers_names <- names(readDNAStringSet(paste(output_dir,final_primers_fasta,sep="/")))
   } else{
-    # create fasta from combinations <----  TO DO 
+    # create fasta from combinations <----  TO DO
     my_fasta <- readDNAStringSet(paste(output_dir,"primers.fasta",sep="/"))
     final_pick <- unlist(strsplit(best_combination_list[[2]],split=" [+] "))
     primers_names <- c()
@@ -105,9 +109,12 @@ fg_designer_log <-  capture.output({
       writeXStringSet(final_fasta,paste0(output_dir,"/","final_",rownames(pick),".fasta"))
     }
     combinations["Selected"] <- as.integer(rownames(combinations) %in% final_pick)
+    best_combination_list[[1]]["Selected"] <- as.integer(rownames(best_combination_list[[1]]) %in% best_combination_list[[2]])
   }
   cat("FINAL FASTA FILE CREATED.\n")
+
   # create bed
+  
   final_bed <- read.csv(paste(output_dir,"primers.bed",sep="/"),sep="\t",header=FALSE)
   final_bed <- final_bed[final_bed[,4] %in% gsub("-[RF]","",primers_names),]
   write.table(final_bed, file=paste(output_dir,"final_primers.bed",sep="/"), quote=F, sep="\t", row.names=F, col.names=F)

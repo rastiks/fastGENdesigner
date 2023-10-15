@@ -17,7 +17,10 @@ fg_designer_log <-  capture.output({
   if (!(exists("input_file"))) input_file <- inputs["input_file",]
   if (!(exists("output_dir"))) output_dir <- inputs["output_dir",]
   if (!(exists("size_range"))) size_range <- inputs["size_range",]
-  if (!(exists("pools"))) num_pools <- inputs["pools",]
+  if (!(exists("pools"))) num_pools <- inputs["pools",] else num_pools <- pools
+  if (!(exists("score_threshold"))) score_threshold <- as.integer(inputs["score_threshold",])
+  if (!(exists("dg_threshold"))) dg_threshold <- as.integer(inputs["dg_threshold",])
+  if (!(exists("attempts"))) num_attempts <- as.integer(inputs["attempts",]) else num_attempts <- as.integer(attempts)
   
   #zz <- file(paste(output_dir,"output.log", sep="/"), open = "wt")
   #sink(file = zz, type="output", split=TRUE)
@@ -27,8 +30,16 @@ fg_designer_log <-  capture.output({
   cat(paste("Output dir:", output_dir),"\n")
   cat(paste("Size range:", size_range),"\n")
   
-  if (!(is.na(num_pools))) {cat(paste("Number of pools:", num_pools,"\n"))} #else {
-  #cat(paste("Number of pools:", pools,"\n"))}
+  if (is.na(num_pools)) {cat(paste("Number of pools:", "least as possible","\n"))} else {
+  cat(paste("Number of pools:", num_pools,"\n"))}
+  if(is.na(score_threshold)) score_threshold <- 2
+  if(is.na(dg_threshold)) dg_threshold <- -2
+  if(is.na(num_attempts)) num_attempts <- 10
+  
+  cat(paste("Attempts:", num_attempts),"\n")
+  cat(paste("Score threshold:", score_threshold),"\n")
+  cat(paste("dG threshold:", dg_threshold),"\n")
+  
   
   config <- read.csv("config", sep="=", comment.char = "#", header = FALSE,row.names =1)
   
@@ -73,11 +84,15 @@ fg_designer_log <-  capture.output({
                                "Duration"=duration,
                                "Input File"=input_file,
                                "Output Directory"=output_dir,
+                               "Number of attempts"=num_attempts,
+                               "Number of pools"=num_pools,
+                               "Score threshold"=score_threshold,
+                               "dG threshold"=dg_threshold,
                                "Input Type"=input_type,
                                "Primer3"=primer3_path,
                                "Primer pooler"=primer_pooler,
                                "Blast DB"=blast_db,
-                               "Number of pools:"=number_of_parts)
+                               "Final number of pools:"=number_of_parts)
   
   if (is.null(combinations)){
     output_fastgen["Best pool(s)"] <- paste(success,collapse = " ")

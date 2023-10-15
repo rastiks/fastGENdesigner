@@ -237,7 +237,7 @@ pooler_check <- function(final,final_names, number_of_parts,attempt){
     }
     else if (length(good_pools)>1) {
       cat("Multiple suitable pools found. Starting scorring.\n")
-      scores <- pooler_scoring(output_dir,good_pools)
+      scores <- pooler_scoring(output_dir,good_pools, score_threshold, dg_threshold)
       cat("Calculated scores:\n")
       for(i in 1:length(good_pools)) cat(paste(good_pools[i],": ",scores[i], "\n", sep="")) 
       return(good_pools)
@@ -283,7 +283,7 @@ pooler_check <- function(final,final_names, number_of_parts,attempt){
   }
 }
 
-scores_summing <- function(output_dir,name_of_file) {
+scores_summing <- function(output_dir,name_of_file, score_threshold=2, dg_threshold=-2) {
   scores <- readLines(paste(output_dir,"/pooler_output/",name_of_file,"_score.txt", sep=""))
   where <- grep("poolfile\\d",scores)
   where <- c(where, length(scores))
@@ -292,7 +292,7 @@ scores_summing <- function(output_dir,name_of_file) {
   for (i in 1:(length(where)-1)) {
     my_pfile <- scores[where[i]:where[i+1]]
     all_scores <- as.integer(regmatches(my_pfile[grep("Score = ", my_pfile)],regexpr("\\d+",my_pfile[grep("Score = ", my_pfile)])))
-    pool_score <- sum(all_scores[all_scores>2])
+    pool_score <- sum(all_scores[all_scores>score_threshold])
     scores_sum <- c(scores_sum, pool_score)
   }
   
@@ -304,7 +304,7 @@ scores_summing <- function(output_dir,name_of_file) {
   for (i in 1:(length(where)-1)) {
     my_pfile <- scores[where[i]:where[i+1]]
     all_scores <- as.numeric(gsub(",",".",regmatches(my_pfile[grep("dG = ", my_pfile)],regexpr("-\\d+,*\\d+",my_pfile[grep("dG = ", my_pfile)]))))
-    #pool_score <- sum(all_scores[all_scores< -2])
+    pool_score <- sum(all_scores[all_scores< dg_threshold])
     pool_score <- sum(all_scores)
     scores_sum_dG <- c(scores_sum_dG, pool_score)
   }
@@ -312,7 +312,7 @@ scores_summing <- function(output_dir,name_of_file) {
   return(list(scores_sum,scores_sum_dG))
 }
 
-pooler_scoring <- function(output_dir,names=NULL){
+pooler_scoring <- function(output_dir,names=NULL,score_threshold=2, dg_threshold=-2){
   system(paste('echo "Primer pooler scoring" > ', output_dir, "/pooler_output/poolfiles_score.txt",sep=""))
   if (is.null(names)) {
     names <- list.files(paste(output_dir,"pooler_output", sep="/"), pattern="poolfile\\d+.txt")
@@ -334,13 +334,13 @@ pooler_scoring <- function(output_dir,names=NULL){
     ))
   }
   unlink(temp_file)
-  scores_sum <- scores_summing(output_dir,"poolfiles")
+  scores_sum <- scores_summing(output_dir,"poolfiles", score_threshold, dg_threshold)
   names(scores_sum) <- c("Score","dG")
   return(scores_sum) 
   
 }
 
-combinations_scoring <- function(output_dir, combinations){
+combinations_scoring <- function(output_dir, combinations, score_threshold, dg_threshold){
   cat("Scoring multiple combinations - this can take a while .. \n")
   primers <- readDNAStringSet(paste(output_dir,"primers.fasta", sep="/"))
   system(paste('echo "Primer pooler scoring" > ', output_dir, "/pooler_output/combinations_score.txt",sep=""))
@@ -359,13 +359,13 @@ combinations_scoring <- function(output_dir, combinations){
     
     system(paste('echo "',row.names(combinations)[i],'"', " >> " , output_dir, "/pooler_output/combinations_dG.txt",sep=""))
     try(system(
-      paste(primer_pooler, " ", temp_poolfile, " --print-bonds=-2 --dg=333,2,1,1 ",
+      paste(primer_pooler, " ", temp_poolfile, " --print-bonds=-1 --dg=333,2,1,1 ",
             ">> ", output_dir, "/pooler_output/combinations_dG.txt 2> ",temp_file, sep="")
     ))
     
   }
   unlink(temp_poolfile)
-  scores <- scores_summing(output_dir,"combinations")
+  scores <- scores_summing(output_dir,"combinations",score_threshold, dg_threshold)
   combinations["Score"] <- scores[[1]]
   combinations["dG"] <- scores[[2]]
   return(combinations)
@@ -457,7 +457,7 @@ success <- FALSE
 attempts <- 1
 
 # ORIGINAL NUMBER OF PARTS - 10 attempts for multiple pools, 6 attempts for one pool
-while ((paste(success,collapse = " ") == FALSE) & (attempts <= 10)) {
+while ((paste(success,collapse = " ") == FALSE) & (attempts <= num_attempts)) {
   cat(paste("Attempt No.", attempts, "\n"))
   try(system(
     paste(primer_pooler ," --pools=", pools,",1,",output_dir,"/pooler_output/poolfile ", "--genome=fastGENdesigner_files/hg38.2bit ",output_dir, 
@@ -465,7 +465,6 @@ while ((paste(success,collapse = " ") == FALSE) & (attempts <= 10)) {
   ))
   file.remove(grep("overlap-report.\\d+.txt",list.files(), value=TRUE))
   list_dataframes <- suppressWarnings(pooler_summary(output_dir))
-  print(list_dataframes[[1]])
   success <- pooler_check(list_dataframes[[1]],list_dataframes[[2]], number_of_parts,attempts)
   if (paste(success,collapse = " ") != FALSE & number_of_parts>1){
     combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success)
@@ -484,7 +483,7 @@ if (paste(success,collapse = " ") != FALSE) {
   #else combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success) # <---- problem
   best_combination_list <- NULL
   if (is.data.frame(combinations)) {
-    combinations <- combinations_scoring(output_dir,combinations)
+    combinations <- combinations_scoring(output_dir,combinations, score_threshold, dg_threshold)
     best_combination_list <- combinations_choosing(combinations,success)
   }
   
@@ -522,14 +521,14 @@ if (paste(success,collapse = " ") != FALSE) {
     cat("Poolfiles and pooler output created\n")
     best_combination_list <- NULL
     if (is.data.frame(combinations)) {
-      combinations <- combinations_scoring(output_dir,combinations)
+      combinations <- combinations_scoring(output_dir,combinations, score_threshold, dg_threshold)
       best_combination_list <- combinations_choosing(combinations,success)
     }
 }
 
 # SKOROVAT AJ ORIGINALNE POOLY
 #file.remove(grep("overlap-report.\\d+.txt",list.files(), value=TRUE))
-scores <- pooler_scoring(output_dir)
+scores <- pooler_scoring(output_dir,names = NULL, score_threshold, dg_threshold)
 scores <- t(data.frame(scores))
 colnames(scores) <- colnames(list_dataframes[[1]])
 list_dataframes[[1]] <- rbind(list_dataframes[[1]], scores)

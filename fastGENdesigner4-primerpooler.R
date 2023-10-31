@@ -441,9 +441,7 @@ if (is.na(num_pools)){
 primers <- regmatches(primers,regexpr("_p\\d-[RF]$",primers))
 pools <- max(as.integer(regmatches(primers,regexpr("\\d+",primers)))) + r_number_of_parts # +1 because of indexing and -1 because if we have two parts, we want to add 1
 #}
-#print(number_of_parts)
-#print(r_number_of_parts)
-#print(pools)
+
 
 #cat(paste("Number of pools:",pools, "\n"))
 
@@ -456,7 +454,7 @@ if (!(dir.exists((paste(output_dir, "pooler_output", sep = "/"))))) {
 success <- FALSE
 attempts <- 1
 
-# ORIGINAL NUMBER OF PARTS - 10 attempts for multiple pools, 6 attempts for one pool
+# ORIGINAL NUMBER OF PARTS - 10 attempts for multiple pools
 while ((paste(success,collapse = " ") == FALSE) & (attempts <= num_attempts)) {
   cat(paste("Attempt No.", attempts, "\n"))
   try(system(
@@ -469,7 +467,7 @@ while ((paste(success,collapse = " ") == FALSE) & (attempts <= num_attempts)) {
   if (paste(success,collapse = " ") != FALSE & number_of_parts>1){
     combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success)
     if (is.data.frame(combinations)){
-      if (nrow(combinations)>5000) {success = FALSE; cat("Too many combinations\n")} #     print(nrow(combinations))
+      if (nrow(combinations)>5000) {success = FALSE; cat("Too many combinations\n")} 
     else success <- unique(regmatches(rownames(combinations), regexpr("poolfile\\d+.txt", rownames(combinations))))
     }
   }
@@ -487,13 +485,12 @@ if (paste(success,collapse = " ") != FALSE) {
     best_combination_list <- combinations_choosing(combinations,success)
   }
   
-  #excel_update(output_dir,list_dataframes[[1]],list_dataframes[[2]], success,combinations, best_combination_list[[1]],output_setting)
 } else {
   # INCREASING NUMBER OF POOLS
   s <- "s"
   if (number_of_parts == 1) s <- ""
   cat(paste("Cannot create ", number_of_parts, " pool",s,". Incrising number of pools.", "\n", sep = ""))
-  attempts <- 11
+  #attempts <- num_attempts + 1
   number_of_parts <- number_of_parts+1
   success <- pooler_check(list_dataframes[[1]],list_dataframes[[2]], number_of_parts,attempts)
   
@@ -503,8 +500,8 @@ if (paste(success,collapse = " ") != FALSE) {
     else success <- unique(regmatches(rownames(combinations), regexpr("poolfile\\d+.txt", rownames(combinations))))
   }
   
-  # 10 ATTEMPTS TO DO IT BETTER - to not have so many combinations - would take too much time to score them
-  while ((paste(success,collapse = " ") == FALSE) & (attempts <= 15)) {
+  # 10 ATTEMPTS TO DO IT BETTER 
+  while ((paste(success,collapse = " ") == FALSE) & (attempts <= num_attempts + 10)) {
     cat(paste("Attempt No.", attempts, "\n"))
     try(system(
       paste(primer_pooler ," --pools=", pools,",1,",output_dir,"/pooler_output/poolfile ", "--genome=fastGENdesigner_files/hg38.2bit ",output_dir, 

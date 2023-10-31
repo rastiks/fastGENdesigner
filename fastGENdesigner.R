@@ -1,4 +1,14 @@
 # fastGENdesigner
+list.of.packages <- c("seqinr", "Biostrings", "openxlsx","EnsDb.Hsapiens.v86",
+                      "ensembldb","BSgenome.Hsapiens.UCSC.hg38","GenomicRanges",
+                      "rBLAST")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)>0) {
+  cat("Installing packages - this can take a while ..\n")
+  install.packages(new.packages)
+}
+
 fg_designer_log <-  capture.output({
   time_start <- Sys.time()
   script_directory <- dirname(sys.frame(1)$ofile)

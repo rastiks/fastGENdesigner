@@ -510,9 +510,11 @@ if (paste(success,collapse = " ") != FALSE) {
     file.remove(grep("overlap-report.\\d+.txt",list.files(), value=TRUE))
     list_dataframes <- suppressWarnings(pooler_summary(output_dir))
     success <- pooler_check(list_dataframes[[1]],list_dataframes[[2]], number_of_parts,attempts)
+    if (paste(success,collapse = " ") != FALSE) {
     combinations <- pooler_combinations(list_dataframes[[1]],list_dataframes[[2]], success)
     if  (is.data.frame(combinations) & nrow(combinations)>5000) {success = FALSE; cat("Too many combinations\n")} #     print(nrow(combinations))
     else success <- unique(regmatches(rownames(combinations), regexpr("poolfile\\d+.txt", rownames(combinations))))
+    }
     attempts <- attempts +1
   }
     cat("Poolfiles and pooler output created\n")

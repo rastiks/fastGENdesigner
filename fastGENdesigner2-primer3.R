@@ -64,7 +64,7 @@
   # check result
   if (length(returned.primers)==0){
     # SAVING STATISTICS if no primer was found
-    #write.csv(out, file=paste(output_dir, "statistics_primer3.txt", sep="/"),append=TRUE)
+    write.csv(out, file=paste(output_dir, "statistics_primer3.csv", sep="/"),append=TRUE)
     
     if (nchar(input_list$comment)>0) cat(paste(input_list$comment,"...","\u2717", "\n", sep = " "))  
     else cat(paste(input_list$name, "\u2717\n", sep = " "))
@@ -73,7 +73,7 @@
   
   if ((returned.primers)==0){ 
     # SAVING STATISTICS if no primer was found
-    #write.table(out, file=paste(output_dir, "statistics_primer3.txt", sep="/"),append=TRUE)
+    write.table(out, file=paste(output_dir, "statistics_primer3.csv", sep="/"),append=TRUE)
     
     if (nchar(input_list$comment)>0) cat(paste(input_list$comment,"...","\u2717\n", sep = " "))
     else cat(paste(input_list$name, "\u2717\n", sep = " "))
@@ -142,12 +142,23 @@ resizing_step <- function(resizing,primers_table, input_type, output_dir){
   if (input_type =="A") {
     new_input <- data.frame("gene"=new_genes)
     exons <- regmatches(resizing, regexpr(".+ex(_\\d+)", resizing)) 
-    }
+  #}
     write.csv(new_input, paste(output_dir,"input_resizing.txt", sep="/"), row.names=FALSE, quote = FALSE)
     return(list(primers_table, exons))
-    
+  }
+  # STATISTICS
+  a <- read.csv(paste(output_dir,"statistics_primer3.csv", sep="/"),sep=" ",row.names = NULL)
+  a <- a[,-1]
+  where <- as.integer(rownames(a[a$V2==resizing,]))
+  where <- c(where,nrow(a)+2)
+  my_df <- data.frame(
+    "V1" = a[where[1]:(where[2]-3),1])
+  for (i in 1:(length(where)-1)){
+    my_df[paste0("V",i+1)] <- a[where[i]:(where[i+1]-3),2]
+  }
+  write.csv(my_df, file=paste(output_dir, "statistics_primer3.csv", sep="/"))
+  return(list(primers_table,""))
   # TO DO : INPUT TYPE B AND C
-    
 }
 
 merging_files <- function(output_dir){
@@ -349,6 +360,7 @@ primer3caller <- function(input_file, output_dir, size_range, input_type, primer
     
   }
   return(comment)
+  
 }
 
 main <- function(input_file, output_dir, size_range, input_type, primer3_path, resizing=FALSE){

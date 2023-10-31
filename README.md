@@ -6,6 +6,11 @@ Requirements:
 - Primer3: https://github.com/primer3-org/primer3
 - Primer pooler: http://ssb22.user.srcf.net/pooler/pooler.tgz
 - hg38.2bit: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/
+
+   cd fastGENdesigner_files
+   wget http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.2bit
+   cd ..
+  
 - BlastDB: human_genome.00.tar.gz and human_genome.01.tar.gz from: https://ftp.ncbi.nlm.nih.gov/blast/db/ .. then extract them to one file
 
 - !! PLEASE UPDATE THE PATHS IN CONFIG FILE !!

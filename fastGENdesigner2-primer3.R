@@ -269,7 +269,7 @@ primer3caller <- function(input_file, output_dir, size_range, input_type, primer
       if (n_try ==1) {my_list$PolyX <- 6; my_list$comment <- "Increasing the PRIMER_MAX_POLY_X (4->6)"}
       else if (n_try==2) {my_list$TmDiff <- 5; my_list$comment <- "Increasing the PRIMER_PAIR_MAX_DIFF_TM (3->5)"}
       else if (n_try==3) {my_list$PrimerSize <- c(17,20,27) ; my_list$comment <- "Decreasing the PRIMER_MIN_SIZE (18->17) and Increasing the PRIMER_MAX_SIZE (23->27)"}
-      else if (n_try==4) {my_list$Tm <- c(54,59,62) ; my_list$comment <- "Decreasing the PRIMER_MIN_TM (57->54)"}
+      else if (n_try==4) {my_list$Tm <- c(52,59,64) ; my_list$comment <- "Decreasing the PRIMER_MIN_TM (57->54) Increasing the PRIMER_MAX_TM (62->64)"}
       
       primers<-.callP3NreadOrg(input_list = my_list,
                                primer3=primer3_path,

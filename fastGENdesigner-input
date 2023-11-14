@@ -1,8 +1,10 @@
 # fastGENdesigner input arguments
 # Add your input arguments for fastGENdesigner below
 
-input_file=/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/input.txt
+input_file=/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs/MSI_14_loci.txt
 output_dir=/home/ppola/bva/fastgen_xpolak37/fastGENdesigner/inputs_outputs
 size_range=50-170
-#pools=4
-
+pools=2
+attempts=10
+score_threshold=2
+dg_threshold=-2

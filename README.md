@@ -5,13 +5,15 @@ Requirements:
 - R v4.2
 - Primer3: https://github.com/primer3-org/primer3
 - Primer pooler: http://ssb22.user.srcf.net/pooler/pooler.tgz
-- hg38.2bit: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/
+- hg38.2bit: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/ (needs to be in fastGENdesigner_files)
 
-   cd fastGENdesigner_files
-   wget http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.2bit
-   cd ..
+    ```
+    cd fastGENdesigner_files
+    wget http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.2bit
+    cd ..
+    ```
   
-- BlastDB: human_genome.00.tar.gz and human_genome.01.tar.gz from: https://ftp.ncbi.nlm.nih.gov/blast/db/ .. then extract them to one file
+- BlastDB: human_genome.00.tar.gz and human_genome.01.tar.gz from: https://ftp.ncbi.nlm.nih.gov/blast/db/ .. then extract them to one file, use "path_to_blast_db/GCF_000001405.39_top_level" in config (see config example)
 
 - !! PLEASE UPDATE THE PATHS IN CONFIG FILE !!
 

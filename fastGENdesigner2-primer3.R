@@ -143,7 +143,7 @@ resizing_step <- function(resizing,primers_table, input_type, output_dir){
     new_input <- data.frame("gene"=new_genes)
     exons <- regmatches(resizing, regexpr(".+ex(_\\d+)", resizing)) 
   #}
-    write.csv(new_input, paste(output_dir,"input_resizing.txt", sep="/"), row.names=FALSE, quote = FALSE)
+    write.csv(new_input, paste(dirname(input_file),"input_resizing.txt", sep="/"), row.names=FALSE, quote = FALSE)
     return(list(primers_table, exons))
   }
   # STATISTICS
@@ -209,7 +209,7 @@ merging_files <- function(output_dir){
   unlink(files[grep("^_resizing_full_sequences.fasta$",basename(gsub("exons|ROIs","",files)))])
   
   # input
-  unlink(paste(output_dir, "input_resizing.txt", sep ="/"))
+  unlink(paste(dirname(input_file), "input_resizing.txt", sep ="/"))
   }
 
 ############################## primer_design - using external program PRIMER3    ###############

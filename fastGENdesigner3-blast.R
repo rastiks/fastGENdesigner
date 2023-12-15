@@ -7,14 +7,14 @@
 
 
 find_problem <- function(primer, sub_cl, chromosomes,i){
-  target <- sub_cl[sub_cl$QueryID == primer &  # name
-                     grepl(paste("NC_0+", chromosomes[i,1], "[.]\\d+", sep=""), sub_cl$SubjectID) &  # chromosome  
-                     (sub_cl$S.start >= chromosomes$V2[i]) & (sub_cl$S.end <= chromosomes$V3[i]) ,] # coordinates
+  target <- sub_cl[sub_cl[,1] == primer &  # name
+                     grepl(paste("NC_0+", chromosomes[i,1], "[.]\\d+", sep=""), sub_cl[,2]) &  # chromosome  
+                     (sub_cl$sstart >= chromosomes$V2[i]) & (sub_cl$send <= chromosomes$V3[i]) ,] # coordinates
   # find max score
-  max_score <- target$Bits
+  max_score <- target$bitscore
   
   # filter max score -6
-  final_query <- sub_cl[(sub_cl$QueryID == primer) & (sub_cl$Bits >= max_score -6),]
+  final_query <- sub_cl[(sub_cl[,1] == primer) & (sub_cl$bitscore >= max_score -6),]
   control <- data.frame(matrix(target, nrow = nrow(final_query), ncol = ncol(target),byrow=TRUE))
   control <- control == final_query
   final_query <- final_query[!( rowSums(control) == ncol(final_query)),]
@@ -45,29 +45,29 @@ blasting <- function(input_file, output_dir, input_type,blast_db) {
   chromosomes$V1 <- gsub("chr", "", chromosomes$V1)
   # TO DO - uplne zakazat () v inpute?
   chromosomes$V4 <-  gsub("[(].[)]","", chromosomes$V4)
-  cl$QueryID <- gsub("[(].[)]","", cl$QueryID)
+  cl[,1] <- gsub("[(].[)]","", cl[,1])
   
   # FOR LOOP - pre kazdu sekvenciu
   problems_df <- data.frame()
   for (i in 1:nrow(chromosomes)) {
-    sub_cl <- cl[grepl(chromosomes[i,4],cl$QueryID),]
+    sub_cl <- cl[grepl(chromosomes[i,4],cl[,1]),]
     # for loop pre kazdy primer pair - p0 az p4 ...
-    for (forward_primer in unique(grep("-F", sub_cl$QueryID, value=TRUE))) {
+    for (forward_primer in unique(grep("-F", sub_cl[,1], value=TRUE))) {
       result_forward <- find_problem(forward_primer, sub_cl, chromosomes,i)
       target <- result_forward[[1]]
       final_query <- result_forward[[2]]
       
       # je viac zhod - problem - skontrolovat aj reverse - ak je na rovnako zlom chromozome vyradime ho
       if (nrow(final_query) > 0) {
-        result_reverse <- find_problem(gsub("-F","-R",unique(final_query$QueryID)), sub_cl, chromosomes,i)
+        result_reverse <- find_problem(gsub("-F","-R",unique(final_query[,1])), sub_cl, chromosomes,i)
         target_reverse <- result_reverse[[1]]
         final_query_reverse <- result_reverse[[2]]
         for (i_problem in 1:nrow(final_query)) {
-          if (nrow(final_query_reverse[(final_query_reverse$SubjectID == final_query$SubjectID[i_problem]) & 
-                                       !(grepl("NT_",final_query$SubjectID[i_problem])) & 
-                                       ((abs(final_query_reverse$S.start - final_query$S.start[i_problem]))<10000) ,]) > 0)  { #  blizko seba
-            reverse_problem <- final_query_reverse[(final_query_reverse$SubjectID == final_query$SubjectID[i_problem]) & # same offtarget chromosome
-                                                     ((abs(final_query_reverse$S.start - final_query$S.start[i_problem]))<10000) ,]
+          if (nrow(final_query_reverse[(final_query_reverse[,2] == final_query[,2][i_problem]) & 
+                                       !(grepl("NT_",final_query[,2][i_problem])) & 
+                                       ((abs(final_query_reverse$sstart - final_query$sstart[i_problem]))<10000) ,]) > 0)  { #  blizko seba
+            reverse_problem <- final_query_reverse[(final_query_reverse[,2] == final_query[,2][i_problem]) & # same offtarget chromosome
+                                                     ((abs(final_query_reverse$sstart - final_query$sstart[i_problem]))<10000) ,]
             forward_problem <- final_query[i_problem,]
             problems_df <- rbind(problems_df,rbind(forward_problem, reverse_problem))
             discarding <- c(discarding,forward_primer, gsub("-F","-R",forward_primer))

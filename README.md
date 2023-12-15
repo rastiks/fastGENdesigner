@@ -15,6 +15,9 @@ Requirements:
   
 - BlastDB: human_genome.00.tar.gz and human_genome.01.tar.gz from: https://ftp.ncbi.nlm.nih.gov/blast/db/ .. then extract them to one file, use "path_to_blast_db/GCF_000001405.39_top_level" in config (see config example)
 
+- BLAST 2.9.0 + (sudo apt install ncbi-blast+)
+
+
 - !! PLEASE UPDATE THE PATHS IN CONFIG FILE !!
 
 Updates:

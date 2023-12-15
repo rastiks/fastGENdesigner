@@ -4,9 +4,16 @@ list.of.packages <- c("seqinr", "Biostrings", "openxlsx","EnsDb.Hsapiens.v86",
                       "rBLAST")
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if ( "rBLAST" %in% new.packages) {
+  "Installing rBLAST - this can take a while ..\n"
+  install.packages('rBLAST', repos = 'https://mhahsler.r-universe.dev')
+  new.packages <- new.packages[-(grep("rBLAST",new.packages))]
+}
+
 if(length(new.packages)>0) {
   cat("Installing packages - this can take a while ..\n")
-  install.packages(new.packages)
+  #install.packages(new.packages)
+  BiocManager::install(new.packages)
 }
 
 time_start <- Sys.time()
@@ -50,7 +57,6 @@ cat(paste("Attempts:", num_attempts),"\n")
 cat(paste("Score threshold:", score_threshold),"\n")
 cat(paste("dG threshold:", dg_threshold),"\n")
 
-
 config <- read.csv("config", sep="=", comment.char = "#", header = FALSE,row.names =1)
 
 cat("Loading packages - this can take a while ..\n")
@@ -65,7 +71,6 @@ suppressMessages(library('rBLAST'))
 
 # fastGENdesigner
 comment <-""
-print(comment)
 source("fastGENdesigner1-seq_selection.R")
 
 primer3_path <- config["primer3",]
@@ -140,7 +145,6 @@ if (is.null(best_combination_list)){ #
 cat("FINAL FASTA FILE CREATED.\n")
 
 # create bed
-
 final_bed <- read.csv(paste(output_dir,"primers.bed",sep="/"),sep="\t",header=FALSE)
 final_bed <- final_bed[final_bed[,4] %in% gsub("-[RF]","",primers_names),]
 write.table(final_bed, file=paste(output_dir,"final_primers.bed",sep="/"), quote=F, sep="\t", row.names=F, col.names=F)

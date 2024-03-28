@@ -13,7 +13,7 @@
 #' 
 
 # !!! primer 3 configuration NEEDED !!! 
-.callP3NreadOrg<-function(input_list = list(seq = "ACGT",ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63),
+.callP3NreadOrg<-function(input_list = list(seq = "ACGT",ROI_start = 100, ROI_width=3,size_range='50-170',Tm=c(54,59,63), # Tm=c(56,60,64)
                           TmDiff = 3, name="unnamed", 
                           PolyX=6, PrimerSize=c(18,20,23), PrimerGC=c(30,50,70), comment=""),
                           primer3="~/primer3/primer3-2.6.1/src/primer3_core",
@@ -271,7 +271,7 @@ primer3caller <- function(input_file, output_dir, size_range, input_type, primer
       else if (n_try==3) {my_list$PrimerSize <- c(17,20,27) ; my_list$comment <- "Decreasing the PRIMER_MIN_SIZE (18->17) and Increasing the PRIMER_MAX_SIZE (23->27)"}
       #else if (n_try==4) {my_list$Tm <- c(54,59,62) ; my_list$comment <- "Decreasing the PRIMER_MIN_TM (57->54)"}
       else if (n_try==4) {my_list$Tm <- c(52,59,64) ; my_list$comment <- "Decreasing the PRIMER_MIN_TM (57->54) Increasing the PRIMER_MAX_TM (62->64)"}
-      
+      #  c(54,60,66) novy setting 
       primers<-.callP3NreadOrg(input_list = my_list,
                                primer3=primer3_path,
                                thermo.param=paste(substring(primer3_path,1,regexpr("/src/",primer3_path)+4),"primer3_config",sep=""))
